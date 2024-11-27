@@ -57,32 +57,32 @@ double schwefel(double* x, int n) {
     return result;
 }
 
-struct Function get_function(enum FunctionNames name) {
-    struct FunctionParams params;
+struct func_t get_function(enum func_name name) {
+    struct func_param_t params;
     double (*f)(double*, int);
 
     switch(name) {
         case ROSENBROCK:
-            params = (struct FunctionParams) {-30.0, 30.0, 15.0, 30.0, 1.0};
+            params = (struct func_param_t) {-30.0, 30.0, 15.0, 30.0, 1.0};
             f = *rosenbrock;
             break;
         case RASTRIGIN:
-            params = (struct FunctionParams) {-5.12, 5.12, 2.56, 5.12, 0.0};
+            params = (struct func_param_t) {-5.12, 5.12, 2.56, 5.12, 0.0};
             f = *rastrigin;
             break;
         case GRIEWANK:
-            params = (struct FunctionParams) {-600.0, 600.0, 300.0, 600.0, 0.0};
+            params = (struct func_param_t) {-600.0, 600.0, 300.0, 600.0, 0.0};
             f = *griewank;
             break;
         case ACKLEY:
-            params = (struct FunctionParams) {-32.0, 32.0, 16.0, 32.0, 0.0};
+            params = (struct func_param_t) {-32.0, 32.0, 16.0, 32.0, 0.0};
             f = *ackley;
             break;
         case SCHWEFEL:
-            params = (struct FunctionParams) {-100.0, 100.0, 50.0, 100.0, 0.0};
+            params = (struct func_param_t) {-100.0, 100.0, 50.0, 100.0, 0.0};
             f = *schwefel;
             break;
     }
     params.dimensions_count = DEF_DIMENSIONS_COUNT;
-    return (struct Function) {name, params, f};
+    return (struct func_t) {name, params, f};
 }

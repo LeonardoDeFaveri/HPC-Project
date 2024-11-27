@@ -8,7 +8,7 @@
 /**
  * Parameters required to set up a test environment for a function.
  */
-struct FunctionParams {
+struct func_param_t {
     double search_space_min;
     double search_space_max;
     double init_min;
@@ -23,7 +23,7 @@ struct FunctionParams {
 /**
  * Names of all supported functions.
  */
-enum FunctionNames {
+enum func_name {
     ROSENBROCK,
     RASTRIGIN,
     GRIEWANK,
@@ -34,9 +34,9 @@ enum FunctionNames {
 /**
  * Bundles together a function with its parameters and its actual body.
  */
-struct Function{
-    FunctionNames name;
-    struct FunctionParams params;
+struct func_t{
+    enum func_name name;
+    struct func_param_t params;
     /**
      * Actual implementation of the function. Takes as input an array of doubles
      * and its size. This is to allow for multidimensional inputs.
@@ -54,6 +54,6 @@ double schwefel(double* x, int n);
  * Given a name, returns the associated function with the parameters
  * necessary for the test environment.
  */
-struct Function get_function(enum FunctionNames name);
+struct func_t get_function(enum func_name name);
 
 #endif
