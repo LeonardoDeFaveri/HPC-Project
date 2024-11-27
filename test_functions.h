@@ -1,0 +1,59 @@
+#ifndef TEST_FUNCTIONS_H
+#define TEST_FUNCTIONS_H
+
+#include <stdint.h>
+
+#define DEF_DIMENSIONS_COUNT 30
+
+/**
+ * Parameters required to set up a test environment for a function.
+ */
+struct FunctionParams {
+    double search_space_min;
+    double search_space_max;
+    double init_min;
+    double init_max;
+    double optima;
+    /**
+     * How many dimensions is the input to the function?
+     */
+    uint8_t dimensions_count;
+};
+
+/**
+ * Names of all supported functions.
+ */
+enum FunctionNames {
+    ROSENBROCK,
+    RASTRIGIN,
+    GRIEWANK,
+    ACKLEY,
+    SCHWEFEL,
+};
+
+/**
+ * Bundles together a function with its parameters and its actual body.
+ */
+struct Function{
+    FunctionNames name;
+    struct FunctionParams params;
+    /**
+     * Actual implementation of the function. Takes as input an array of doubles
+     * and its size. This is to allow for multidimensional inputs.
+     */
+    double (*f)(double*, int);
+};
+
+double rosenbrock(double* x, int n);
+double rastrigin(double* x, int n);
+double griewank(double* x, int n);
+double ackley(double* x, int n);
+double schwefel(double* x, int n);
+
+/**
+ * Given a name, returns the associated function with the parameters
+ * necessary for the test environment.
+ */
+struct Function get_function(enum FunctionNames name);
+
+#endif
