@@ -59,5 +59,6 @@
   "files.associations": {
     "*.arb": "json",
     "typeinfo": "c"
-  }
+  },
+  "editor.tabSize": 2
 }

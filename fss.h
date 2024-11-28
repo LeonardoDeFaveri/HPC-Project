@@ -1,20 +1,84 @@
 #ifndef FSS_H
 #define FSS_H
 
+#include "test_functions.h"
+
 #define CYCLES_LIMIT 10000
-#define W_SCALE 5000
+#define W_SCALE 5000.0
 /**
  * Test functions work on multidimensional inputs. This is the number of
  * dimentions.
  */
-#define DIM_COUNT 5
+#define DIM_COUNT 30
+
+/**
+ * As the original authors did in the paper, `step_ind` and `step_vol` are set
+ * as percentage of the actual search space. For initial values, percentages are
+ * `10%', `1%` and `0.1%`.
+ */
+#define INIT_PERCENTAGE 0.1
+/**
+ * Final values of `step_ind` and `step_vol` are set as percentages of the actual
+ * search space. These percentages are `0.1%`, `0.01` and `0.001`.
+ */
+#define FINAL_PERCENTAGE 0.001
+
+struct fish_info_t {
+  /**
+   * How much weight does this fish have when deciding the collective displacement?
+   */
+  double weight;
+  /**
+   * Value of the test function in current position.
+   */
+  double value;
+  /**
+   * After a dispament, how much has the value improved?
+   */
+  double value_improvement;
+  /**
+   * Current position across all dimensions.
+   */
+  double positions[DIM_COUNT];
+  /**
+   * How has the position of the fish changed to get to the current one?
+   */
+  double displacements[DIM_COUNT];
+};
+typedef struct fish_info_t fish_info_t;
 
 struct fish_t {
+  /**
+   * Test function.
+   */
+  struct func_t func;
+  /**
+   * How much displacement does the fish have when moving individually?
+   */
   double step_ind;
+  /**
+   * How much displacement does the fish have when moving together with the
+   * other fishes?
+   */
   double step_vol;
-  double func_val;
-  double weight;
+  /**
+   * Information of a fish that will have to be shared with other fishes
+   */
+  fish_info_t info;
 };
 typedef struct fish_t fish_t;
+
+/**
+ * Given a test function `f`, initializes `fish`. Its initial position (i.e.
+ * function value) are randomly generated.
+ */
+void init(fish_t* fish, const struct func_t* f);
+
+/******************************************************************************/
+// FSS operations
+void individual_move(fish_t* fish);
+void collective_instinctive_move(fish_t* fish, fish_info_t* fishes, int n);
+/******************************************************************************/
+
 
 #endif
