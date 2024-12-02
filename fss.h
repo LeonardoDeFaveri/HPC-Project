@@ -77,7 +77,10 @@ void init(fish_t* fish, const struct func_t* f);
 /******************************************************************************/
 // FSS operations
 void individual_move(fish_t* fish);
+void feeding_operator( fish_t *fish, fish_info_t *fishes, int n);
 void collective_instinctive_move(fish_t* fish, fish_info_t* fishes, int n);
+void collective_volitive_move(fish_t* fish, fish_info_t* fishes, int n);
+void decrease_step(fish_t *fish, int cycle)
 /******************************************************************************/
 
 

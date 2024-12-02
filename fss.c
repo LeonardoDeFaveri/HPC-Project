@@ -50,6 +50,10 @@ double compute_weight(const fish_t* fish, fish_info_t* fishes, int n) {
   return fish->info.weight + fish->info.value_improvement / max;
 }
 
+double decrease_linearly(double value, double initial_value, double final_value, int max_iterations) {
+  return value - (initial_value - final_value) / max_iterations;
+}
+
 /******************************************************************************/
 /*** FISH API & FSS MOVEMENT **************************************************/
 /******************************************************************************/
@@ -84,8 +88,60 @@ void individual_move(fish_t *fish) {
   }
 }
 
-void collective_instinctive_move(fish_t *fish, fish_info_t *fishes, int n) {
+// Updates weight of each fish based on its value improvement and the maximum
+void feeding_operator( fish_t *fish, fish_info_t *fishes, int n) {
   fish->info.weight = compute_weight(fish, fishes, n);
+  // MICHELE: as it is now, the weight of a fish can never decrease
+  // Should we use the next_position before being set to 0 if value is not improved?
+}
+
+// Computes a weighted average of individual movements
+void collective_instinctive_move(fish_t* fish, fish_info_t* fishes, int n) {
+    // MICHELE: right now things here are computed by each fish, because we such information, but
+    // we could parallelize things with an MPI_Allreduce-MPI_SUM or something similar
+    // Is it worth it? I don't know
+    
+    double sum_displacements[DIM_COUNT] = {0};
+    double sum_values = 0;
+
+    // Compute the sum of all displacements and the sum of all values
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < DIM_COUNT; j++) {
+            sum_displacements[j] += fishes[i].displacements[j];
+        }
+        sum_values += fishes[i].value;
+    }
+
+    // Compute the collective instinctive move
+    for (int j = 0; j < DIM_COUNT; j++) {
+        double move = sum_displacements[j] / sum_values;
+        fish->info.positions[j] += move;
+    }
+}
+
+// Computes baricenter and move fishes towards/away from it
+void collective_volitive_move(fish_t* fish, fish_info_t* fishes, int n) {
+    // MICHELE: right now things here are computed by each fish, because we have such information, but
+    // we could parallelize things with an MPI_Allreduce-MPI_SUM or something similar
+    double baricenter[DIM_COUNT] = {0};
+    double sum_weights = 0;
+
+    // Compute the baricenter and the sum of all weights
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < DIM_COUNT; j++) {
+            baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
+        }
+        sum_weights += fishes[i].weight;
+    }
+
+    // TODO
+    // Here we need to know wether the delta value is positive or negative
+}
+
+// Decreases step_ind and step_vol. To be used every cycle
+void decrease_step(fish_t *fish, int cycle) {
+  fish->step_ind = decrease_linearly(fish->step_ind, INIT_PERCENTAGE, FINAL_PERCENTAGE, CYCLES_LIMIT);
+  fish->step_vol = decrease_linearly(fish->step_vol, INIT_PERCENTAGE, FINAL_PERCENTAGE, CYCLES_LIMIT);
 }
 
 /******************************************************************************/

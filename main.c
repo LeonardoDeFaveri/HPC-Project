@@ -37,6 +37,7 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
   init(&fish, &function);
 
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
+
     individual_move(&fish);
     
     // Each fish requires:
@@ -48,6 +49,13 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     //    others)
     fishes[rank] = fish.info;
     MPI_Allgather(&fishes[rank], 1, *mpi_fish_info, fishes, 1, *mpi_fish_info, MPI_COMM_WORLD);
+
+    feeding_operator(&fish, fishes, world_size);
+    collective_instinctive_move(&fish, fishes, world_size);
+    collective_volitive_move(&fish, fishes, world_size);
+
+    MPI_Allgather(&fishes[rank], 1, *mpi_fish_info, fishes, 1, *mpi_fish_info, MPI_COMM_WORLD);
+    decrease_step(&fish, cycle);
   }
 }
 
