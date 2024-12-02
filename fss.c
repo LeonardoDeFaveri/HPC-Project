@@ -17,7 +17,13 @@ double rand_real(double min, double max) {
 /**
  * Randomly generates a direction for the displacement over one dimension.
  */
-#define direction() (-1 * rand() % 2)
+int8_t direction() {
+  int8_t v = rand() % 2;
+  if (v == 0) {
+    return -1;
+  }
+  return 1;
+}
 
 void compute_next_position(const fish_t* fish, double next_pos[]) {
   for (int i = 0; i < DIM_COUNT; i++) {

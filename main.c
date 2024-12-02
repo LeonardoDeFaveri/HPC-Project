@@ -1,6 +1,7 @@
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include "fss.h"
 #include "test_functions.h"
 
@@ -46,7 +47,7 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     //    (this value could be computer by just on fish and propagated to the
     //    others)
     fishes[rank] = fish.info;
-    MPI_Gather(fishes, 1, mpi_fish_info, mpi_fish_info, 1, mpi_fish_info, 0, MPI_COMM_WORLD);
+    MPI_Allgather(&fishes[rank], 1, *mpi_fish_info, fishes, 1, *mpi_fish_info, MPI_COMM_WORLD);
   }
 }
 
