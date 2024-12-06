@@ -53,6 +53,6 @@ double empty(double *x, int n);
  * if called and whose params have not been initialized, so they should not be
  * accessed.
  */
-struct func_t get_function(enum func_name name);
+const struct func_t get_function(const enum func_name name);
 
 #endif

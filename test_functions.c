@@ -1,5 +1,6 @@
 #include "test_functions.h"
 #include <math.h>
+#include <stdio.h>
 
 #define PI 3.1415926535897932384626433832
 #define SQUARE(x) ((x) * (x))
@@ -62,7 +63,7 @@ double empty(double *x, int n) {
   return 0.0;
 }
 
-struct func_t get_function(enum func_name name) {
+const struct func_t get_function(const enum func_name name) {
   struct func_param_t params;
   double (*f)(double *, int);
 
@@ -90,5 +91,5 @@ struct func_t get_function(enum func_name name) {
   default:
     f = *empty;
   }
-  return (struct func_t){name, params, f};
+  return (struct func_t) {name, params, f};
 }
