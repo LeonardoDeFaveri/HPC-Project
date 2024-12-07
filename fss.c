@@ -1,5 +1,6 @@
 #include "fss.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <float.h>
@@ -70,6 +71,7 @@ void init(fish_t* const fish, struct func_t* const func) {
   }
   fish->info.value = func->f(fish->info.positions, DIM_COUNT);
   fish->info.value_improvement = 0;
+  fish->info.weight_improvement = 0;
   fish->func = *func;
 }
 
@@ -127,21 +129,38 @@ void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishe
     double baricenter[DIM_COUNT] = {0};
     double sum_weights = 0;
 
-    // Compute the baricenter and the sum of all weights
+    // Compute the baricenter and the sum of all weight_improvements
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < DIM_COUNT; j++) {
             baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
         }
-        sum_weights += fishes[i].weight;
+        sum_weights += fishes[i].weight_improvement;
     }
 
-    int inc = 1;
+    // if weigts increased, we need to compact the group having them go towards the baricenter
+    int inc = -1;
     if (sum_weights < 0) {
-      inc = -1;
+      inc = +1;
+    }
+
+    // Compute the difference vector and its magnitude
+    double diff[DIM_COUNT];
+    double magnitude = 0;
+    for (int j = 0; j < DIM_COUNT; j++) {
+        diff[j] = baricenter[j] - fish->info.positions[j];
+        magnitude += diff[j] * diff[j];
+    }
+    magnitude = sqrt(magnitude);
+
+    // Normalize the difference vector
+    if (magnitude > 0) {
+        for (int j = 0; j < DIM_COUNT; j++) {
+            diff[j] /= magnitude;
+        }
     }
 
     for (int j = 0; j < DIM_COUNT; j++) {
-      fish->info.positions[j] += inc * (fish->step_vol * rand_real(0, 1) * (fish->info.positions[j] - baricenter[i]));
+      fish->info.positions[j] += inc * (fish->step_vol * rand_real(0, 1) * diff[j]);
     }
 }
 

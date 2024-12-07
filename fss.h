@@ -37,6 +37,10 @@ struct fish_info_t {
    */
   double value_improvement;
   /**
+   * How much weight changed after feeding ioperator.
+   */
+  double weight_improvement;
+  /**
    * Current position across all dimensions.
    */
   double positions[DIM_COUNT];
