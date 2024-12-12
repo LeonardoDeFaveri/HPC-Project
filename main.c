@@ -6,6 +6,18 @@
 #include "fss.h"
 #include "test_functions.h"
 
+#ifdef DEBUG
+  #define PRINT(f, ...) printf(f, __VA_ARGS__)
+  #define PRINT_INFO(desc, rank, info) PRINT("FISH[%d] %s: {\n\tvalue: %f\n\tweight: %f\n\tpositions: %f, %f\n}\n", rank, desc, info.value, info.weight, info.positions[0], info.positions[1])
+  #define PRINT_POS(desc, cycle, rank, pos_x, pos_y) PRINT("FISH[%d] AT CYCLE[%d] %s POS: %f, %f\n", rank, cycle, desc, pos_x, pos_y)
+  #define PRINT_POS0(desc, cycle, rank, pos_x, pos_y) if (rank == 0) PRINT_POS(desc, cycle, rank, pos_x, pos_y)
+#else
+  #define PRINT(f, ...)
+  #define PRINT_INFO(desc, rank, info)
+  #define PRINT_POS(desc, cycle, rank, pos_x, pos_y)
+  #define PRINT_POS0(desc, cycle, rank, pos_x, pos_y)
+#endif
+
 void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info);
 MPI_Datatype register_fish_info_t();
 
@@ -45,27 +57,30 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     fprintf(file, "cycle,rank,position_x,position_y\n");
   }
 
-  printf("FISH[%d]: initial value: %f\t initial weight: %f\n", rank, fish.info.value, fish.info.weight);
-  printf("FISH[%d]: initial positions: %f, %f\n", rank, fish.info.positions[0], fish.info.positions[1]);
+  //PRINT("FISH[%d]: initial value: %f\t initial weight: %f\n", rank, fish.info.value, fish.info.weight);
+  //PRINT("FISH[%d]: Initial position %f, %f", rank, fish.info.positions[0], fish.info.positions[1]);
+  PRINT_INFO("Initials", rank, fish.info);
 
-  for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
+  for (int cycle = 0; cycle < 3; cycle++) {
     individual_move(&fish);
-    printf("FISH[%d]: after individual move: %f, %f\n", rank, fish.info.positions[0], fish.info.positions[1]);
+    PRINT_POS0("After individual move", cycle, rank, fish.info.positions[0], fish.info.positions[1]);
 
     fishes[rank] = fish.info;
     MPI_Allgather(&fish.info, 1, *mpi_fish_info, fishes, 1, *mpi_fish_info, MPI_COMM_WORLD);
-    for (int i = 0; i < world_size; i++) {
-      printf("FISH[%d]: gathered positions: %f, %f\n", i, fishes[i].positions[0], fishes[i].positions[1]);
+    if (rank == 0) {
+      for (int i = 0; i < world_size; i++) {
+        PRINT_POS("Gathered positions", cycle, i, fishes[i].positions[0], fishes[i].positions[1]);
+      }
     }
 
     feeding_operator(&fish, fishes, world_size);
-    printf("FISH[%d]: after feeding operator: %f, %f\n", rank, fish.info.positions[0], fish.info.positions[1]);
+    PRINT_POS0("After feeding operator", cycle, rank, fish.info.positions[0], fish.info.positions[1]);
 
     collective_instinctive_move(&fish, fishes, world_size);
-    printf("FISH[%d]: after collective instinctive move: %f, %f\n", rank, fish.info.positions[0], fish.info.positions[1]);
+    PRINT_POS0("After collective instinctive move", cycle, rank, fish.info.positions[0], fish.info.positions[1]);
 
     collective_volitive_move(&fish, fishes, world_size, rank);
-    printf("FISH[%d]: after collective volitive move: %f, %f\n", rank, fish.info.positions[0], fish.info.positions[1]);
+    PRINT_POS0("After Collective volitive move", cycle, rank, fish.info.positions[0], fish.info.positions[1]);
 
     decrease_step(&fish, cycle);
 
@@ -77,7 +92,8 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     }
   }
 
-  printf("FISH[%d]: final value: %f\t final weight: %f\n", rank, fish.info.value, fish.info.weight);
+  //printf("FISH[%d]: final value: %f\t final weight: %f\n", rank, fish.info.value, fish.info.weight);
+  PRINT_INFO("FINALS", rank, fish.info);
 
   // Close file
   if (rank == 0) {

@@ -58,7 +58,8 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "*.arb": "json",
-    "typeinfo": "c"
+    "typeinfo": "c",
+    "type_traits": "c"
   },
   "editor.tabSize": 2
 }

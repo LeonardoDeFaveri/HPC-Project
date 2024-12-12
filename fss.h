@@ -14,12 +14,13 @@
 /**
  * As the original authors did in the paper, `step_ind` and `step_vol` are set
  * as percentage of the actual search space. For initial values, percentages are
- * `10%', `1%` and `0.1%`.
+ * `10%' (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
  */
 #define INIT_PERCENTAGE 0.1
 /**
  * Final values of `step_ind` and `step_vol` are set as percentages of the actual
- * search space. These percentages are `0.1%`, `0.01` and `0.001`.
+ * search space. These percentages are `0.1%` (`0.001`), `0.01` (`0.0001`) and
+ * `0.001` (`0.00001`).
  */
 #define FINAL_PERCENTAGE 0.001
 
