@@ -32,6 +32,7 @@ void compute_next_position(const fish_t* const fish, double next_pos[]) {
     next_pos[i] = fish->info.positions[i] + disp;
 
     // A position can't be outside of the search space.
+    // TODO place these constraints on every move?
     if (
       next_pos[i] > fish->func.params.search_space_max ||
       next_pos[i] < fish->func.params.search_space_min
@@ -112,7 +113,9 @@ void individual_move(fish_t* const fish) {
 
 // Updates weight of each fish based on its value improvement and the maximum
 void feeding_operator(fish_t* const fish, const fish_info_t* const fishes, int n) {
-  fish->info.weight = compute_weight(fish, fishes, n);
+  double new_weight = compute_weight(fish, fishes, n);
+  fish->info.weight_improvement = new_weight - fish->info.weight;
+  fish->info.weight = new_weight;
 }
 
 // Computes a weighted average of individual movements
@@ -129,13 +132,15 @@ void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fi
         for (int j = 0; j < DIM_COUNT; j++) {
             sum_displacements[j] += fishes[i].displacements[j] * fishes[i].value_improvement;
         }
-        total_value_improvement += fishes[i].value_improvement;
+        total_value_improvement += fmax(fishes[i].value_improvement, (double)0); //TODO is this what the paper intended? I don't know
     }
 
     // Compute the collective instinctive move
     for (int j = 0; j < DIM_COUNT; j++) {
+      if(total_value_improvement != (double)0) { //TODO also here, I don't know if it is right
         double move = sum_displacements[j] / total_value_improvement;
         fish->info.positions[j] += move;
+      }  
     }
 }
 

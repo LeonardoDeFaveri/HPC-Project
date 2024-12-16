@@ -61,7 +61,7 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
   //PRINT("FISH[%d]: Initial position %f, %f", rank, fish.info.positions[0], fish.info.positions[1]);
   PRINT_INFO("Initials", rank, fish.info);
 
-  for (int cycle = 0; cycle < 300; cycle++) {
+  for (int cycle = 0; cycle < 100; cycle++) {
     individual_move(&fish);
     PRINT_POS0("After individual move", cycle, rank, fish.info.positions[0], fish.info.positions[1]);
 
