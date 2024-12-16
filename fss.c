@@ -97,6 +97,7 @@ void individual_move(fish_t* const fish) {
       fish->info.displacements[i] = next_pos[i] - fish->info.positions[i];
       fish->info.positions[i] = next_pos[i];
     }
+    fish->info.value_improvement = fish->info.value - next_val; // positive
     fish->info.value = next_val;
   }
   else {
@@ -104,10 +105,9 @@ void individual_move(fish_t* const fish) {
     for (int i = 0; i < DIM_COUNT; i++) {
       fish->info.displacements[i] = 0;
     }
+    // We still save the value delta to compute the weight
+    fish->info.value_improvement = fish->info.value - next_val; // negative if value increased (worsened)
   }
-
-  // We still save the value delta to compute the weight
-  fish->info.value_improvement = fish->info.value - next_val; // negative if value worsened
 }
 
 // Updates weight of each fish based on its value improvement and the maximum
