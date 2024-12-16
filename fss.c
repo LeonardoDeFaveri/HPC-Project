@@ -42,13 +42,23 @@ void compute_next_position(const fish_t* const fish, double next_pos[]) {
 }
 
 double compute_weight(const fish_t* const fish, const fish_info_t* const fishes, int n) {
-  double max = -DBL_MAX;
+  double max = 0;
   for (int i = 0; i < n; i++) {
     if (fishes[i].value_improvement > max) {
       max = fishes[i].value_improvement;
     }
   }
-  return fish->info.weight + fish->info.value_improvement / max;
+
+  // Comute the new weight, make sure its between bounds
+  double new_weight = fish->info.weight;
+  if (max != 0) {
+    new_weight += fish->info.value_improvement / max;
+    if(new_weight < 1)
+      new_weight = 1;
+    else if (new_weight > W_SCALE)
+      new_weight = W_SCALE;
+  }
+  return new_weight;
 }
 
 double decrease_linearly(double value, double initial_value, double final_value, int max_iterations) {
@@ -87,9 +97,17 @@ void individual_move(fish_t* const fish) {
       fish->info.displacements[i] = next_pos[i] - fish->info.positions[i];
       fish->info.positions[i] = next_pos[i];
     }
-    fish->info.value_improvement = fish->info.value - next_val;
     fish->info.value = next_val;
   }
+  else {
+    // The new position is worse, so the fish stays in the current position
+    for (int i = 0; i < DIM_COUNT; i++) {
+      fish->info.displacements[i] = 0;
+    }
+  }
+
+  // We still save the value delta to compute the weight
+  fish->info.value_improvement = fish->info.value - next_val; // negative if value worsened
 }
 
 // Updates weight of each fish based on its value improvement and the maximum
@@ -104,19 +122,19 @@ void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fi
     // or something similar. Is it worth it? I don't know
     
     double sum_displacements[DIM_COUNT] = {0};
-    double sum_values = 0;
+    double total_value_improvement = 0;
 
     // Compute the sum of all displacements and the sum of all values
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < DIM_COUNT; j++) {
-            sum_displacements[j] += fishes[i].displacements[j];
+            sum_displacements[j] += fishes[i].displacements[j] * fishes[i].value_improvement;
         }
-        sum_values += fishes[i].value;
+        total_value_improvement += fishes[i].value_improvement;
     }
 
     // Compute the collective instinctive move
     for (int j = 0; j < DIM_COUNT; j++) {
-        double move = sum_displacements[j] / sum_values;
+        double move = sum_displacements[j] / total_value_improvement;
         fish->info.positions[j] += move;
     }
 }
@@ -127,19 +145,26 @@ void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishe
     // such information, but we could parallelize things with an
     // MPI_Allreduce-MPI_SUM or something similar
     double baricenter[DIM_COUNT] = {0};
-    double sum_weights = 0;
+    double total_weight_improvement = 0;
+    double total_weight = 0;
 
     // Compute the baricenter and the sum of all weight_improvements
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < DIM_COUNT; j++) {
             baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
         }
-        sum_weights += fishes[i].weight_improvement;
+        total_weight += fishes[i].weight;
+        total_weight_improvement += fishes[i].weight_improvement;
+    }
+
+    // Normalize the baricenter by the total weight
+    for (int j = 0; j < DIM_COUNT; j++) {
+        baricenter[j] /= total_weight;
     }
 
     // if weigts increased, we need to compact the group having them go towards the baricenter
     int inc = -1;
-    if (sum_weights < 0) {
+    if (total_weight_improvement < 0) {
       inc = +1;
     }
 
