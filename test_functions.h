@@ -11,7 +11,7 @@ struct func_param_t {
   double search_space_max;
   double init_min;
   double init_max;
-  double optima;
+  double optimum;
 };
 
 /**

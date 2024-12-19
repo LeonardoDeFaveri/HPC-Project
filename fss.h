@@ -30,13 +30,13 @@ struct fish_info_t {
    */
   double weight;
   /**
-   * Value of the test function in current position.
+   * Amount of food available in current position
    */
-  double value;
+  double food_amount;
   /**
-   * After a dispament, how much has the value improved?
+   * After a dispament, how much has the amount of food improved?
    */
-  double value_improvement;
+  double food_improvement;
   /**
    * How much weight changed after feeding ioperator.
    */
