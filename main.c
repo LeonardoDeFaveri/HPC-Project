@@ -18,7 +18,7 @@
   #define PRINT_POS0(desc, cycle, rank, pos_x, pos_y, weight)
 #endif
 
-void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info);
+void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes);
 MPI_Datatype register_fish_info_t();
 
 int main(int argc, char **argv) {
@@ -27,15 +27,25 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (argc < 2) {
+  if (argc < 3) {
     if (rank == 0) {
-      fprintf(stderr, "You should provide a function name as an integer in (0, 4)\n");
+      fprintf(stderr, "You should provide a function name as an integer in (0, 4) and the total number of fishes\n");
     }
   } else {
     const struct func_t function = get_function((enum func_name)atoi(argv[1]));
+    int total_fishes = atoi(argv[2]);
+    //int fishes_per_process = total_fishes / world_size;
+    //int remaining_fishes = total_fishes % world_size;
+
+    //if (rank < remaining_fishes) {
+    //  fishes_per_process++;
+    //}
+
+    //printf("Fishes per process: %d", fishes_per_process);
+
     MPI_Datatype mpi_fish_info = register_fish_info_t();
 
-    run(world_size, rank, function, &mpi_fish_info);
+    run(world_size, rank, function, &mpi_fish_info, total_fishes);
 
     MPI_Type_free(&mpi_fish_info);
   }
@@ -44,60 +54,78 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info) {
+void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes) {
   srand(time(NULL) + rank);
-  fish_info_t* fishes = malloc(sizeof(fish_info_t) * world_size);
-  fish_t fish;
-  init(&fish, &function);
+
+  // Compute the amout of local fishes
+  int total_local_fishes;
+  if (total_fishes%world_size == 0) {
+    total_local_fishes = total_fishes/world_size;
+  } else {
+    if(rank == world_size-1) {
+      total_local_fishes = total_fishes - (total_fishes/world_size + 1) * (world_size - 1);
+    } else {
+      total_local_fishes = total_fishes/world_size + 1;
+    }
+  }
+
+  fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_fishes);
+  fish_info_t* send_buffer = malloc(sizeof(fish_info_t) * total_local_fishes);
+  fish_t* local_fishes = malloc(sizeof(fish_t) * total_local_fishes);
+
+  for (int i = 0; i < total_local_fishes; i++) {
+    init(&local_fishes[i], &function);
+  }
 
   // Open file for writing
   FILE *file;
   if (rank == 0) {
     file = fopen("HPC-Project/fish_positions.csv", "w");
-    fprintf(file, "cycle,rank,position_x,position_y,weight\n");
+    fprintf(file, "cycle,rank,fish_id,position_x,position_y,weight\n");
   }
 
-  PRINT_INFO("Initials", rank, fish.info);
+  for (int cycle = 0; cycle < 100; cycle++) {
+    for (int i = 0; i < total_local_fishes; i++) {
+      individual_move(&local_fishes[i]);
+      PRINT_POS0("After individual move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+    }
 
-  for (int cycle = 0; cycle < 1000; cycle++) {
-    individual_move(&fish);
-    PRINT_POS0("After individual move", cycle, rank, fish.info.positions[0], fish.info.positions[1], fish.info.weight);
+    for (int i = 0; i < total_local_fishes; i++) {
+      fishes[rank * total_local_fishes + i] = local_fishes[i].info;
+    }
 
-    fishes[rank] = fish.info;
-    MPI_Allgather(&fish.info, 1, *mpi_fish_info, fishes, 1, *mpi_fish_info, MPI_COMM_WORLD);
+    for (int i = 0; i < total_local_fishes; i++) {
+      send_buffer[i] = local_fishes[i].info;
+    }
+
+    MPI_Allgather(send_buffer, total_local_fishes, *mpi_fish_info, fishes, total_local_fishes, *mpi_fish_info, MPI_COMM_WORLD);
+
     if (rank == 0) {
-      for (int i = 0; i < world_size; i++) {
-        PRINT_POS("Gathered positions", cycle, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
+      for (int i = 0; i < total_fishes; i++) {
+        fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
       }
     }
 
-    feeding_operator(&fish, fishes, world_size);
-    PRINT_POS0("After feeding operator", cycle, rank, fish.info.positions[0], fish.info.positions[1], fish.info.weight);
+    for (int i = 0; i < total_local_fishes; i++) {
+      feeding_operator(&local_fishes[i], fishes, total_fishes);
+      PRINT_POS0("After feeding operator", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
-    collective_instinctive_move(&fish, fishes, world_size);
-    PRINT_POS0("After collective instinctive move", cycle, rank, fish.info.positions[0], fish.info.positions[1], fish.info.weight);
+      collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
+      PRINT_POS0("After collective instinctive move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
-    collective_volitive_move(&fish, fishes, world_size, rank);
-    PRINT_POS0("After Collective volitive move", cycle, rank, fish.info.positions[0], fish.info.positions[1], fish.info.weight);
+      collective_volitive_move(&local_fishes[i], fishes, total_fishes, rank);
+      PRINT_POS0("After collective volitive move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
-    decrease_step(&fish, cycle);
-
-    // Write positions to file
-    if (rank == 0) {
-      for (int i = 0; i < world_size; i++) {
-        fprintf(file, "%d,%d,%f,%f,%f\n", cycle, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
-      }
+      decrease_step(&local_fishes[i], cycle);
     }
   }
 
-  PRINT_INFO("FINALS", rank, fish.info);
-
-  // Close file
   if (rank == 0) {
     fclose(file);
   }
 
   free(fishes);
+  free(local_fishes);
 }
 
 MPI_Datatype register_fish_info_t() {
