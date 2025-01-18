@@ -8,14 +8,14 @@
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
-  #define PRINT_INFO(desc, rank, info) PRINT("FISH[%d] %s: {\n\tfood: %f\n\tweight: %f\n\tpositions: %f, %f\n}\n", rank, desc, info.food_amount, info.weight, info.positions[0], info.positions[1])
-  #define PRINT_POS(desc, cycle, rank, pos_x, pos_y, weight) PRINT("FISH[%d] AT CYCLE[%d] %s POS: %f, %f WEIGHT: %f\n", rank, cycle, desc, pos_x, pos_y, weight)
-  #define PRINT_POS0(desc, cycle, rank, pos_x, pos_y, weight) if (rank == 0) PRINT_POS(desc, cycle, rank, pos_x, pos_y, weight)
+  #define PRINT_INFO(desc, rank, local_id, info) PRINT("FISH[%d-%d] %s: {\n\tfood: %f\n\tweight: %f\n\tpositions: %f, %f\n}\n", rank, local_id, desc, info.food_amount, info.weight, info.positions[0], info.positions[1])
+  #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight) PRINT("FISH[%d-%d] AT CYCLE[%d] %s POS: %f, %f WEIGHT: %f\n", rank, local_id, cycle, desc, pos_x, pos_y, weight)
+  #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight) if (rank == 0) PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #else
   #define PRINT(f, ...)
-  #define PRINT_INFO(desc, rank, info)
-  #define PRINT_POS(desc, cycle, rank, pos_x, pos_y, weight)
-  #define PRINT_POS0(desc, cycle, rank, pos_x, pos_y, weight)
+  #define PRINT_INFO(desc, rank, local_id, info)
+  #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
+  #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #endif
 
 void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes);
@@ -57,16 +57,10 @@ int main(int argc, char **argv) {
 void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes) {
   srand(time(NULL) + rank);
 
-  // Compute the amout of local fishes
-  int total_local_fishes;
-  if (total_fishes%world_size == 0) {
-    total_local_fishes = total_fishes/world_size;
-  } else {
-    if(rank == world_size-1) {
-      total_local_fishes = total_fishes - (total_fishes/world_size + 1) * (world_size - 1);
-    } else {
-      total_local_fishes = total_fishes/world_size + 1;
-    }
+  // Compute the amount of local fishes
+  int total_local_fishes = total_fishes / world_size;
+  if (rank < total_fishes % world_size) {
+    total_local_fishes++;
   }
 
   fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_fishes);
@@ -87,7 +81,7 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
   for (int cycle = 0; cycle < 100; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i]);
-      PRINT_POS0("After individual move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+      PRINT_POS0("After individual move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
     }
 
     for (int i = 0; i < total_local_fishes; i++) {
@@ -101,20 +95,28 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     MPI_Allgather(send_buffer, total_local_fishes, *mpi_fish_info, fishes, total_local_fishes, *mpi_fish_info, MPI_COMM_WORLD);
 
     if (rank == 0) {
-      for (int i = 0; i < total_fishes; i++) {
-        fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
+      int fish_index = 0;
+      for (int proc = 0; proc < world_size; proc++) {
+        int fishes_in_proc = total_fishes / world_size;
+        if (proc < total_fishes % world_size) {
+          fishes_in_proc++;
+        }
+        for (int i = 0; i < fishes_in_proc; i++) {
+          fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, fish_index, fishes[fish_index].positions[0], fishes[fish_index].positions[1], fishes[fish_index].weight);
+          fish_index++;
+        }
       }
     }
 
     for (int i = 0; i < total_local_fishes; i++) {
       feeding_operator(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0("After feeding operator", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+      PRINT_POS0("After feeding operator", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
       collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0("After collective instinctive move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+      PRINT_POS0("After collective instinctive move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
       collective_volitive_move(&local_fishes[i], fishes, total_fishes, rank);
-      PRINT_POS0("After collective volitive move", cycle, rank, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+      PRINT_POS0("After collective volitive move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
 
       decrease_step(&local_fishes[i], cycle);
     }
