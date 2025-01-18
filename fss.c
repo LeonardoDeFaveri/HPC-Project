@@ -99,7 +99,7 @@ void individual_move(fish_t* const fish) {
   compute_next_position(fish, next_pos);
   // By making comparisons on the amount of food available in a position instead
   // of on the value of the functions being considered, we are allowed to always
-  // look for the highes possible value.
+  // look for the highest possible value
   double next_val = compute_amount_of_food(
     fish->func.f(next_pos, DIM_COUNT),
     fish->func.params.optimum

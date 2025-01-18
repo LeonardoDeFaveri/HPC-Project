@@ -27,25 +27,33 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (argc < 3) {
+  if (argc < 4) {
     if (rank == 0) {
-      fprintf(stderr, "You should provide a function name as an integer in (0, 4) and the total number of fishes\n");
+      fprintf(stderr, "You should provide a function name as an integer in (0, 4), the maximum number of fishes and a path to the output file\n");
     }
   } else {
-    const struct func_t function = get_function((enum func_name)atoi(argv[1]));
-    int total_fishes = atoi(argv[2]);
-    //int fishes_per_process = total_fishes / world_size;
-    //int remaining_fishes = total_fishes % world_size;
-
-    //if (rank < remaining_fishes) {
-    //  fishes_per_process++;
-    //}
-
-    //printf("Fishes per process: %d", fishes_per_process);
-
+    const struct func_t function = get_function((enum func_name) atoi(argv[1]));
+    int max_fishes_count = atoi(argv[2]);
     MPI_Datatype mpi_fish_info = register_fish_info_t();
 
-    run(world_size, rank, function, &mpi_fish_info, total_fishes);
+    FILE *output;
+    if (rank == 0) {
+      output = fopen(argv[3], "a");
+    }
+    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+      // Waits for every process to arrive here before proceeding
+      MPI_Barrier(MPI_COMM_WORLD);
+      double start_time = MPI_Wtime();
+      run(world_size, rank, function, &mpi_fish_info, max_fishes_count);
+      double elapsed_time = MPI_Wtime() - start_time;
+
+      if (rank == 0) {
+        fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
+      }
+    }
+    if (rank == 0) {
+      fclose(output);
+    }
 
     MPI_Type_free(&mpi_fish_info);
   }
