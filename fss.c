@@ -6,7 +6,7 @@
 #include <float.h>
 
 /******************************************************************************/
-/*** UTILITY FUNCTIONS *********************************************************/
+/*** UTILITY FUNCTIONS ********************************************************/
 /******************************************************************************/
 /**
  * Returns a random value between a and b (exclusive).
@@ -15,6 +15,7 @@ double rand_real(double min, double max) {
   double div = RAND_MAX / (max - min);
   return min + (rand() / div);
 }
+
 /**
  * Randomly generates a direction for the displacement over one dimension.
  */
@@ -143,13 +144,12 @@ void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fi
         for (int j = 0; j < DIM_COUNT; j++) {
             sum_displacements[j] += fishes[i].displacements[j] * fishes[i].food_improvement;
         }
-        //total_value_improvement += fmax(fishes[i].value_improvement, (double)0); //TODO is this what the paper intended? I don't know
         total_value_improvement += fishes[i].food_improvement;
     }
 
     // Compute the collective instinctive move
     for (int j = 0; j < DIM_COUNT; j++) {
-      if(total_value_improvement != 0.0) { //TODO also here, I don't know if it is right
+      if(total_value_improvement != 0.0) {
         double move = sum_displacements[j] / total_value_improvement;
         fish->info.positions[j] += move;
         // Check that position is within bounds
