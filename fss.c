@@ -44,10 +44,11 @@ void compute_next_position(const fish_t* const fish, double next_pos[]) {
 }
 
 double compute_weight(const fish_t* const fish, const fish_info_t* const fishes, int n) {
-  double max = -DBL_MAX;
+  double max = 0;
   for (int i = 0; i < n; i++) {
-    if (fishes[i].food_improvement > max) {
-      max = fishes[i].food_improvement;
+    double improvement = fabs(fishes[i].food_improvement);
+    if (improvement > max) {
+      max = improvement;
     }
   }
 
@@ -71,7 +72,9 @@ double decrease_linearly(double value, double initial_value, double final_value,
 
 /// The closer `value` is to `optimum_value`, the higher the returned value.
 double compute_amount_of_food(double value, double optimum_value) {
-  return DBL_MAX - abs(value - optimum_value);
+  // This is a magic number. Using DBL_MAX is not possible because operations
+  // on it don't have enough precision to produce an actual result.
+  return (double) 99999999999999 - fabs(value - optimum_value);
 }
 
 /******************************************************************************/
@@ -86,13 +89,13 @@ void init(fish_t* const fish, struct func_t* const func) {
   for (int i = 0; i < DIM_COUNT; i++) {
     fish->info.positions[i] = rand_real(func->params.init_min, func->params.init_max);
   }
+  fish->func = *func;
   fish->info.food_amount = compute_amount_of_food(
     func->f(fish->info.positions, DIM_COUNT),
     fish->func.params.optimum
   );
   fish->info.food_improvement = 0;
   fish->info.weight_improvement = 0;
-  fish->func = *func;
 }
 
 void individual_move(fish_t* const fish) {
@@ -100,11 +103,12 @@ void individual_move(fish_t* const fish) {
   compute_next_position(fish, next_pos);
   // By making comparisons on the amount of food available in a position instead
   // of on the value of the functions being considered, we are allowed to always
-  // look for the highest possible value
+  // look for the smallest possible value
   double next_val = compute_amount_of_food(
     fish->func.f(next_pos, DIM_COUNT),
     fish->func.params.optimum
   );
+  fish->info.food_improvement = next_val - fish->info.food_amount;
 
   // Checks if the new position is better than the current one
   if (next_val > fish->info.food_amount) {
@@ -120,7 +124,6 @@ void individual_move(fish_t* const fish) {
       fish->info.displacements[i] = 0;
     }
   }
-  fish->info.food_improvement = next_val - fish->info.food_amount;
 }
 
 // Updates weight of each fish based on its value improvement and the maximum

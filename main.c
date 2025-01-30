@@ -1,3 +1,9 @@
+/**
+ * This version of the program puts most of the heavy workload on fishes. If a
+ * value need other fishes informations to be computed, these are exchanged and
+ * then each fish computes the value.
+ */
+
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,17 +46,19 @@ int main(int argc, char **argv) {
     if (rank == 0) {
       output = fopen(argv[3], "a");
     }
+
     for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
       // Waits for every process to arrive here before proceeding
       MPI_Barrier(MPI_COMM_WORLD);
       double start_time = MPI_Wtime();
-      run(world_size, rank, function, &mpi_fish_info, max_fishes_count);
+      run(world_size, rank, function, &mpi_fish_info, fishes_count);
       double elapsed_time = MPI_Wtime() - start_time;
 
       if (rank == 0) {
         fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
       }
     }
+
     if (rank == 0) {
       fclose(output);
     }
@@ -65,17 +73,37 @@ int main(int argc, char **argv) {
 void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes) {
   srand(time(NULL) + rank);
 
-  // Compute the amount of local fishes
+  /*
+   * Computes the total amount of fishes. The strategy is that of distributing
+   * fishes to that all first n-1 processes all have the same number n1 of fishes,
+   * process n has n2 < n1 fishes or 0 fishes.
+   * This allows for the use of AllGather instead on AllGatherv when the
+   * number of fishes cannot be equally distributed among processes. This way,
+   * process n still send n1 fishesh, but the one in excess are
+   * ghost values not actually part of any computation.
+   */
+  int rem = total_fishes % world_size;
   int total_local_fishes = total_fishes / world_size;
-  if (rank < total_fishes % world_size) {
-    total_local_fishes++;
+  int tot = total_local_fishes + 1;
+  if (rem != 0) {
+    if ((rank + 1) * tot <= total_fishes) {
+      total_local_fishes = tot;
+    } else if ((rank + 1) * tot > total_fishes && rank * tot <= total_fishes) {
+      total_local_fishes = rank * tot - total_fishes;
+    } else {
+      total_local_fishes = 0;
+    }
+  } else {
+    tot--;
   }
 
-  fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_fishes);
-  fish_info_t* send_buffer = malloc(sizeof(fish_info_t) * total_local_fishes);
-  fish_t* local_fishes = malloc(sizeof(fish_t) * total_local_fishes);
+  int total_size = world_size * tot;
+  fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_size);
+  fish_info_t* send_buffer = malloc(sizeof(fish_info_t) * tot);
+  fish_t* local_fishes = malloc(sizeof(fish_t) * tot);
 
-  for (int i = 0; i < total_local_fishes; i++) {
+  // Initialize more-fishes than necessary, but fishes in excess won't be used
+  for (int i = 0; i < tot; i++) {
     init(&local_fishes[i], &function);
   }
 
@@ -92,27 +120,23 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
       PRINT_POS0("After individual move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
     }
 
-    for (int i = 0; i < total_local_fishes; i++) {
-      fishes[rank * total_local_fishes + i] = local_fishes[i].info;
+    for (int i = 0; i < tot; i++) {
+      fishes[rank * tot + i] = local_fishes[i].info;
     }
 
     for (int i = 0; i < total_local_fishes; i++) {
       send_buffer[i] = local_fishes[i].info;
     }
 
-    MPI_Allgather(send_buffer, total_local_fishes, *mpi_fish_info, fishes, total_local_fishes, *mpi_fish_info, MPI_COMM_WORLD);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
 
     if (rank == 0) {
-      int fish_index = 0;
-      for (int proc = 0; proc < world_size; proc++) {
-        int fishes_in_proc = total_fishes / world_size;
-        if (proc < total_fishes % world_size) {
-          fishes_in_proc++;
+      int proc = -1;
+      for (int i = 0; i < total_fishes; i++) {
+        if (i % tot == 0) {
+          proc++;
         }
-        for (int i = 0; i < fishes_in_proc; i++) {
-          fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, fish_index, fishes[fish_index].positions[0], fishes[fish_index].positions[1], fishes[fish_index].weight);
-          fish_index++;
-        }
+        fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
       }
     }
 
