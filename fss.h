@@ -14,7 +14,7 @@
 /**
  * As the original authors did in the paper, `step_ind` and `step_vol` are set
  * as percentage of the actual search space. For initial values, percentages are
- * `10%' (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
+ * `10%` (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
  */
 #define INIT_PERCENTAGE 0.1
 /**
@@ -58,6 +58,19 @@ struct fish_t {
    */
   struct func_t func;
   /**
+   * How much distance there is between the maximum allowed value in the search
+   * space and the minimum one.
+   */
+  double search_space_width;
+  /**
+   * What percentage of the `search_space_width` is used at each step. 
+   */
+  double step_perc;
+  /**
+   * How is `step_perc` reduced at each step?
+   */
+  double step_perc_dec;
+  /**
    * How much displacement does the fish have when moving individually?
    */
   double step_ind;
@@ -85,7 +98,7 @@ void individual_move(fish_t* const fish);
 void feeding_operator(fish_t* const fish, const fish_info_t* const fishes, int n);
 void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fishes, int n);
 void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n, int i);
-void decrease_step(fish_t* const fish, int cycle);
+void decrease_step(fish_t* const fish);
 /******************************************************************************/
 
 

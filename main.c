@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 16; fishes_count <= max_fishes_count; fishes_count *= 2) {
       // Waits for every process to arrive here before proceeding
       MPI_Barrier(MPI_COMM_WORLD);
       double start_time = MPI_Wtime();
@@ -99,7 +99,6 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
 
   int total_size = world_size * tot;
   fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_size);
-  fish_info_t* send_buffer = malloc(sizeof(fish_info_t) * tot);
   fish_t* local_fishes = malloc(sizeof(fish_t) * tot);
 
   // Initialize more-fishes than necessary, but fishes in excess won't be used
@@ -114,44 +113,106 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
     fprintf(file, "cycle,rank,fish_id,position_x,position_y,weight\n");
   }
 
+  /****************************************************************************/
+  /***** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION *****/
+  /****************************************************************************/
+  #ifdef DEBUG
+  for (int i = 0; i < tot; i++) {
+    fishes[rank * tot + i] = local_fishes[i].info;
+  }
+  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
+  if (rank == 0) {
+    int proc = -1;
+    for (int i = 0; i < total_fishes; i++) {
+      if (i % tot == 0) {
+        proc++;
+      }
+      fprintf(
+        file, "%d,%d,%d,%f,%f,%f\n", -1, proc, i,
+        fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight
+      );
+    }
+  }
+  #endif
+  /****************************************************************************/
+
   for (int cycle = 0; cycle < 100; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i]);
-      PRINT_POS0("After individual move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
+      PRINT_POS0(
+        "After individual move", cycle, rank, i,
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
+      );
     }
 
     for (int i = 0; i < tot; i++) {
       fishes[rank * tot + i] = local_fishes[i].info;
     }
 
-    for (int i = 0; i < total_local_fishes; i++) {
-      send_buffer[i] = local_fishes[i].info;
-    }
-
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
 
+    for (int i = 0; i < total_local_fishes; i++) {
+      feeding_operator(&local_fishes[i], fishes, total_fishes);
+      PRINT_POS0(
+        "After feeding operator", cycle, rank, i,
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
+      );
+    }
+
+    for (int i = 0; i < tot; i++) {
+      fishes[rank * tot + i] = local_fishes[i].info;
+    }
+    // This second call is necessary because we need weight info of every fish
+    // in collective moves. In the future we could just collect weight and
+    // weight_improvement (or just the first value and compute the latter) to
+    // have smaller messages which maybe could boost performance.
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
+
+    for (int i = 0; i < total_local_fishes; i++) {
+      collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
+      PRINT_POS0(
+        "After collective instinctive move", cycle, rank, i,
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
+      );
+
+      // When we compute this we don't have the most update position of each
+      // fish... Is this a problem if the algorithm still works? It would be
+      // better to avoid another message exchange...
+      collective_volitive_move(&local_fishes[i], fishes, total_fishes, rank);
+      PRINT_POS0(
+        "After collective volitive move", cycle, rank, i,
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
+      );
+
+      decrease_step(&local_fishes[i]);
+    }
+
+    /**************************************************************************/
+    /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
+    /**************************************************************************/
+    #ifdef DEBUG
+    for (int i = 0; i < tot; i++) {
+      fishes[rank * tot + i] = local_fishes[i].info;
+    }
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     if (rank == 0) {
       int proc = -1;
       for (int i = 0; i < total_fishes; i++) {
         if (i % tot == 0) {
           proc++;
         }
-        fprintf(file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i, fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight);
+        fprintf(
+          file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i,
+          fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight
+        );
       }
     }
-
-    for (int i = 0; i < total_local_fishes; i++) {
-      feeding_operator(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0("After feeding operator", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
-
-      collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0("After collective instinctive move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
-
-      collective_volitive_move(&local_fishes[i], fishes, total_fishes, rank);
-      PRINT_POS0("After collective volitive move", cycle, rank, i, local_fishes[i].info.positions[0], local_fishes[i].info.positions[1], local_fishes[i].info.weight);
-
-      decrease_step(&local_fishes[i], cycle);
-    }
+    #endif
+    /**************************************************************************/
   }
 
   if (rank == 0) {
