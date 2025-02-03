@@ -31,9 +31,9 @@ void compute_next_position(const fish_t* const fish, double* next_pos) {
 }
 
 double compute_weight(const fish_t* const fish, const fish_info_t* const fishes, int n) {
-  double max = 0;
+  double max = -DBL_MAX;
   for (int i = 0; i < n; i++) {
-    double improvement = fabs(fishes[i].food_improvement);
+    double improvement = fishes[i].food_improvement;
     if (improvement > max) {
       max = improvement;
     }
@@ -51,13 +51,6 @@ double compute_weight(const fish_t* const fish, const fish_info_t* const fishes,
   return new_weight;
 }
 
-void decrease_linearly(fish_t* const fish) {
-  fish->step_perc -= fish->step_perc_dec;
-  fish->step_ind = fish->step_perc * fish->search_space_width;
-  fish->step_vol = fish->step_ind;
-}
-//TODO allow for different values for step_ind and step_vol
-
 /// The higher the better
 double compute_amount_of_food(double value) {
   // The food amount is computed to be inversely proportional to the function's
@@ -74,14 +67,16 @@ double compute_amount_of_food(double value) {
 
 void init(fish_t* const fish, struct func_t* const func) {
   fish->search_space_width = func->params.search_space_max - func->params.search_space_min;
-  fish->step_perc = INIT_PERCENTAGE;
+  fish->step_ind_perc = IND_INIT_PERCENTAGE;
+  fish->step_vol_perc = VOL_INIT_PERCENTAGE;
   // NOTE: If here `CYCLES_LIMIT` is replaced with the actual number of algorithm
   // iterations we do, positions change in a much smother way. If the the number
   // of iterations exceedes the cycles count used here, fishes begin to separate
   // on exceeding iterations. Don't know way.
-  fish->step_perc_dec = (INIT_PERCENTAGE - FINAL_PERCENTAGE) / CYCLES_LIMIT;
-  fish->step_ind = fish->search_space_width * fish->step_perc;
-  fish->step_vol = fish->step_ind;
+  fish->step_ind_perc_dec = (IND_INIT_PERCENTAGE - IND_FINAL_PERCENTAGE) / CYCLES_LIMIT;
+  fish->step_vol_perc_dec = (VOL_INIT_PERCENTAGE - VOL_FINAL_PERCENTAGE) / CYCLES_LIMIT;
+  fish->step_ind = fish->search_space_width * fish->step_ind_perc;
+  fish->step_vol = fish->search_space_width * fish->step_vol_perc;
   fish->func = *func;
   fish->info.weight = W_SCALE / 2;
   for (int i = 0; i < DIM_COUNT; i++) {
@@ -95,8 +90,8 @@ void init(fish_t* const fish, struct func_t* const func) {
 }
 
 void individual_move(fish_t* const fish) {
-
-  // Update food amount to current position (since it changed from collective movements)
+  // Update food amount to current position (since it changed from collective
+  // movements)
   fish->info.food_amount = compute_amount_of_food(
     fish->func.f(fish->info.positions, DIM_COUNT)
   );
@@ -138,100 +133,94 @@ void feeding_operator(fish_t* const fish, const fish_info_t* const fishes, int n
 
 // Computes a weighted average of individual movements
 void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fishes, int n) {
-    // MICHELE: right now things here are computed by each fish, because we such
-    // information, but we could parallelize things with an MPI_Allreduce-MPI_SUM
-    // or something similar. Is it worth it? I don't know
-    double sum_displacements[DIM_COUNT] = {0};
-    double total_value_improvement = 0;
+  double sum_displacements[DIM_COUNT] = {0};
+  double total_value_improvement = 0;
 
-    // Compute the sum of all displacements and the sum of all values
-    for (int i = 0; i < n; i++) {
-      double food_improvement = fmax(fishes[i].food_improvement, 0.0);
-        for (int j = 0; j < DIM_COUNT; j++) {
-            sum_displacements[j] += fishes[i].displacements[j] * food_improvement;
-        }
-        total_value_improvement += food_improvement;
-    }
-
-    // Compute the collective instinctive move
-    for (int j = 0; j < DIM_COUNT; j++) {
-      if(total_value_improvement != 0.0) {
-        double move = sum_displacements[j] / total_value_improvement;
-        fish->info.positions[j] += move;
-        // Check that position is within bounds
-        if (fish->info.positions[j] > fish->func.params.search_space_max) {
-          fish->info.positions[j] = fish->func.params.search_space_max;
-        } else if (fish->info.positions[j] < fish->func.params.search_space_min) {
-          fish->info.positions[j] = fish->func.params.search_space_min;
-        }
-      }  
-    }
-}
-
-// Computes baricenter and move fishes towards/away from it
-void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n, int i) {
-    // MICHELE: right now things here are computed by each fish, because we have
-    // such information, but we could parallelize things with an
-    // MPI_Allreduce-MPI_SUM or something similar
-    double baricenter[DIM_COUNT] = {0};
-    double total_positions[DIM_COUNT] = {0};
-    double total_weight_improvement = 0;
-    double total_weight = 0;
-
-    // Compute the baricenter and the sum of all weight_improvements
-    for (int i = 0; i < n; i++) {
+  // Compute the sum of all displacements and the sum of all values
+  for (int i = 0; i < n; i++) {
+    double food_improvement = fmax(fishes[i].food_improvement, 0.0);
       for (int j = 0; j < DIM_COUNT; j++) {
-        baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
-        total_positions[j] += fishes[i].positions[j];
+        sum_displacements[j] += fishes[i].displacements[j] * food_improvement;
       }
-      total_weight += fishes[i].weight;
-      total_weight_improvement += fishes[i].weight_improvement;
-    }
+      total_value_improvement += food_improvement;
+  }
 
+  // Compute the collective instinctive move
+  if(total_value_improvement != 0.0) {
     for (int j = 0; j < DIM_COUNT; j++) {
-      // Normalize the baricenter by the total weight, as shown in a more recent paper
-      baricenter[j] /= total_weight;
-    }
-
-    // If weigts increased, we need to compact the group having them going
-    // towards the baricenter
-    int inc = -1;
-    if (total_weight_improvement < 0) {
-      inc = +1;
-    }
-
-    // Compute the difference vector and its magnitude
-    // NOTE: magnited leads to smother movement of fishes, but the end results
-    // after some iterations is the same as when magnitude is not involved
-    double diff[DIM_COUNT];
-    double magnitude = 0;
-    for (int j = 0; j < DIM_COUNT; j++) {
-      diff[j] = fish->info.positions[j] - baricenter[j];
-      magnitude += diff[j] * diff[j];
-    }
-    magnitude = sqrt(magnitude);
-
-    // Normalize the difference vector
-    if (magnitude > 0) {
-      for (int j = 0; j < DIM_COUNT; j++) {
-        diff[j] /= magnitude;
-      }
-    }
-
-    for (int j = 0; j < DIM_COUNT; j++) {
-      fish->info.positions[j] += inc * (fish->step_vol * rand_real(0, 1) * diff[j]);
+      double move = sum_displacements[j] / total_value_improvement;
+      fish->info.positions[j] += move;
       // Check that position is within bounds
       if (fish->info.positions[j] > fish->func.params.search_space_max) {
         fish->info.positions[j] = fish->func.params.search_space_max;
       } else if (fish->info.positions[j] < fish->func.params.search_space_min) {
         fish->info.positions[j] = fish->func.params.search_space_min;
       }
+    }  
+  }
+}
+
+// Computes baricenter and move fishes towards/away from it
+void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n, int i) {
+  double baricenter[DIM_COUNT] = {0};
+  double total_weight_improvement = 0;
+  double total_weight = 0;
+
+  // Compute the baricenter and the sum of all weight_improvements
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < DIM_COUNT; j++) {
+      baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
     }
+    total_weight += fishes[i].weight;
+    total_weight_improvement += fishes[i].weight_improvement;
+  }
+
+  for (int j = 0; j < DIM_COUNT; j++) {
+    baricenter[j] /= total_weight;
+  }
+
+  // If weights increased, we need to compact the group so that fishes move
+  // towards the baricenter
+  int inc = -1;
+  if (total_weight_improvement < 0) {
+    inc = +1;
+  }
+
+  // Compute the difference vector and its magnitude
+  // NOTE: magnited leads to smother movement of fishes, but the end results
+  // after some iterations is the same as when magnitude is not involved
+  double diff[DIM_COUNT];
+  double magnitude = 0;
+  for (int j = 0; j < DIM_COUNT; j++) {
+    diff[j] = fish->info.positions[j] - baricenter[j];
+    magnitude += diff[j] * diff[j];
+  }
+  magnitude = sqrt(magnitude);
+
+  // Normalize the difference vector
+  if (magnitude > 0) {
+    for (int j = 0; j < DIM_COUNT; j++) {
+      diff[j] /= magnitude;
+    }
+  }
+
+  for (int j = 0; j < DIM_COUNT; j++) {
+    fish->info.positions[j] += inc * fish->step_vol * rand_real(0, 1) * diff[j];
+    // Check that position is within bounds
+    if (fish->info.positions[j] > fish->func.params.search_space_max) {
+      fish->info.positions[j] = fish->func.params.search_space_max;
+    } else if (fish->info.positions[j] < fish->func.params.search_space_min) {
+      fish->info.positions[j] = fish->func.params.search_space_min;
+    }
+  }
 }
 
 // Linearly decreases `step_ind` and `step_vol`.
 void decrease_step(fish_t* const fish) {
-  decrease_linearly(fish);
+  fish->step_ind_perc -= fish->step_ind_perc_dec;
+  fish->step_ind = fish->search_space_width * fish->step_ind_perc;
+  fish->step_vol_perc -= fish->step_vol_perc_dec;
+  fish->step_vol = fish->search_space_width * fish->step_vol_perc;
 }
 
 /******************************************************************************/

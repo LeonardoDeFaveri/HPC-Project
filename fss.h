@@ -16,13 +16,15 @@
  * as percentage of the actual search space. For initial values, percentages are
  * `10%` (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
  */
-#define INIT_PERCENTAGE 0.1
+#define IND_INIT_PERCENTAGE 0.1
 /**
  * Final values of `step_ind` and `step_vol` are set as percentages of the actual
  * search space. These percentages are `0.1%` (`0.001`), `0.01` (`0.0001`) and
  * `0.001` (`0.00001`).
  */
-#define FINAL_PERCENTAGE 0.001
+#define IND_FINAL_PERCENTAGE 0.001
+#define VOL_INIT_PERCENTAGE 0.01
+#define VOL_FINAL_PERCENTAGE 0.0001
 
 struct fish_info_t {
   /**
@@ -65,15 +67,23 @@ struct fish_t {
   /**
    * What percentage of the `search_space_width` is used at each step. 
    */
-  double step_perc;
+  double step_ind_perc;
   /**
-   * How is `step_perc` reduced at each step?
+   * How is `step_ind_perc` reduced at each step?
    */
-  double step_perc_dec;
+  double step_ind_perc_dec;
   /**
    * How much displacement does the fish have when moving individually?
    */
   double step_ind;
+  /**
+   * What percentage of the `search_space_width` is used at each step. 
+   */
+  double step_vol_perc;
+  /**
+   * How is `step_ind_perc` reduced at each step?
+   */
+  double step_vol_perc_dec;
   /**
    * How much displacement does the fish have when moving together with the
    * other fishes?
