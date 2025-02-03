@@ -69,23 +69,23 @@ const struct func_t get_function(const enum func_name name) {
 
   switch (name) {
   case ROSENBROCK:
-    params = (struct func_param_t){-30.0, 30.0, 15.0, 30.0, 1.0};
+    params = (struct func_param_t){-30.0, 30.0, 15.0, 30.0};
     f = *rosenbrock;
     break;
   case RASTRIGIN:
-    params = (struct func_param_t){-5.12, 5.12, 2.56, 5.12, 0.0};
+    params = (struct func_param_t){-5.12, 5.12, 2.56, 5.12};
     f = *rastrigin;
     break;
   case GRIEWANK:
-    params = (struct func_param_t){-600.0, 600.0, 300.0, 600.0, 0.0};
+    params = (struct func_param_t){-600.0, 600.0, 300.0, 600.0};
     f = *griewank;
     break;
   case ACKLEY:
-    params = (struct func_param_t){-32.0, 32.0, 16.0, 32.0, 0.0};
+    params = (struct func_param_t){-32.0, 32.0, 16.0, 32.0};
     f = *ackley;
     break;
   case SCHWEFEL:
-    params = (struct func_param_t){-100.0, 100.0, 50.0, 100.0, 0.0};
+    params = (struct func_param_t){-100.0, 100.0, 50.0, 100.0};
     f = *schwefel;
     break;
   default:

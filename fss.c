@@ -58,11 +58,12 @@ void decrease_linearly(fish_t* const fish) {
 }
 //TODO allow for different values for step_ind and step_vol
 
-/// The closer `value` is to `optimum_value`, the higher the returned value.
-double compute_amount_of_food(double value, double optimum_value) {
-  // The food amount is computed to be inversely proportional to the fitness function
-  if(value!=0.0)
-    return 1.0/value;
+/// The higher the better
+double compute_amount_of_food(double value) {
+  // The food amount is computed to be inversely proportional to the function's
+  // value
+  if(value != 0.0)
+    return 1.0 / value;
   else
     return DBL_MAX;
 }
@@ -87,8 +88,7 @@ void init(fish_t* const fish, struct func_t* const func) {
     fish->info.positions[i] = rand_real(func->params.init_min, func->params.init_max);
   }
   fish->info.food_amount = compute_amount_of_food(
-    func->f(fish->info.positions, DIM_COUNT),
-    fish->func.params.optimum
+    func->f(fish->info.positions, DIM_COUNT)
   );
   fish->info.food_improvement = 0;
   fish->info.weight_improvement = 0;
@@ -98,8 +98,7 @@ void individual_move(fish_t* const fish) {
 
   // Update food amount to current position (since it changed from collective movements)
   fish->info.food_amount = compute_amount_of_food(
-    fish->func.f(fish->info.positions, DIM_COUNT),
-    fish->func.params.optimum
+    fish->func.f(fish->info.positions, DIM_COUNT)
   );
 
   double next_pos[DIM_COUNT];
@@ -109,8 +108,7 @@ void individual_move(fish_t* const fish) {
   // of on the value of the functions being considered, we are allowed to always
   // look for the smallest possible value
   double next_val = compute_amount_of_food(
-    fish->func.f(next_pos, DIM_COUNT),
-    fish->func.params.optimum
+    fish->func.f(next_pos, DIM_COUNT)
   );
 
   fish->info.food_improvement = next_val - fish->info.food_amount;
