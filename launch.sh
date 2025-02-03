@@ -8,7 +8,7 @@ module load mpich-3.2
 # Resets results file
 echo "WORLD_SIZE,FISHES_COUNT,ELAPSED_TIME" > HPC-Project/time_results.csv
 test_function=0
-max_fishes_count=16
+max_fishes_count=30
 
 # Arguments:
 # $1: test function selector

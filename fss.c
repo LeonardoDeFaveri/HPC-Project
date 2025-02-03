@@ -56,12 +56,15 @@ void decrease_linearly(fish_t* const fish) {
   fish->step_ind = fish->step_perc * fish->search_space_width;
   fish->step_vol = fish->step_ind;
 }
+//TODO allow for different values for step_ind and step_vol
 
 /// The closer `value` is to `optimum_value`, the higher the returned value.
 double compute_amount_of_food(double value, double optimum_value) {
-  // Using DBL_MAX is not possible because operations
-  // on it don't have enough precision to produce an actual result.
-  return -fabs(value - optimum_value);
+  // The food amount is computed to be inversely proportional to the fitness function
+  if(value!=0.0)
+    return 1.0/value;
+  else
+    return DBL_MAX;
 }
 
 /******************************************************************************/
@@ -92,8 +95,16 @@ void init(fish_t* const fish, struct func_t* const func) {
 }
 
 void individual_move(fish_t* const fish) {
+
+  // Update food amount to current position (since it changed from collective movements)
+  fish->info.food_amount = compute_amount_of_food(
+    fish->func.f(fish->info.positions, DIM_COUNT),
+    fish->func.params.optimum
+  );
+
   double next_pos[DIM_COUNT];
   compute_next_position(fish, next_pos);
+
   // By making comparisons on the amount of food available in a position instead
   // of on the value of the functions being considered, we are allowed to always
   // look for the smallest possible value
@@ -102,6 +113,8 @@ void individual_move(fish_t* const fish) {
     fish->func.params.optimum
   );
 
+  fish->info.food_improvement = next_val - fish->info.food_amount;
+
   // Checks if the new position is better than the current one
   if (next_val >= fish->info.food_amount) {
     // The new position is better, so the fish moves
@@ -109,16 +122,12 @@ void individual_move(fish_t* const fish) {
       fish->info.displacements[i] = next_pos[i] - fish->info.positions[i];
       fish->info.positions[i] = next_pos[i];
     }
-    fish->info.food_improvement = next_val - fish->info.food_amount;
     fish->info.food_amount = next_val;
   } else {
     // The new position is worse, so the fish stays in the current position
     for (int i = 0; i < DIM_COUNT; i++) {
       fish->info.displacements[i] = 0;
-    }
-    // Since the fish doesn't change its position the amount of food it has
-    // remains the same
-    fish->info.food_improvement = 0;
+   }
   }
 }
 
@@ -139,10 +148,11 @@ void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fi
 
     // Compute the sum of all displacements and the sum of all values
     for (int i = 0; i < n; i++) {
+      double food_improvement = fmax(fishes[i].food_improvement, 0.0);
         for (int j = 0; j < DIM_COUNT; j++) {
-            sum_displacements[j] += fishes[i].displacements[j] * fishes[i].food_improvement;
+            sum_displacements[j] += fishes[i].displacements[j] * food_improvement;
         }
-        total_value_improvement += fishes[i].food_improvement;
+        total_value_improvement += food_improvement;
     }
 
     // Compute the collective instinctive move
@@ -181,8 +191,7 @@ void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishe
     }
 
     for (int j = 0; j < DIM_COUNT; j++) {
-      baricenter[j] /= total_positions[j];
-      // Normalize the baricenter by the total weight
+      // Normalize the baricenter by the total weight, as shown in a more recent paper
       baricenter[j] /= total_weight;
     }
 

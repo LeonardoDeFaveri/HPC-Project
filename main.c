@@ -136,7 +136,7 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
   #endif
   /****************************************************************************/
 
-  for (int cycle = 0; cycle < 100; cycle++) {
+  for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i]);
       PRINT_POS0(
