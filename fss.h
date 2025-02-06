@@ -105,10 +105,15 @@ void collective_instinctive_move(
   fish_t* const fish, double** displacements, double* food_improvements, int n,
   struct setup_info_t* const setup
 );
+// Version A
 void collective_volitive_move(
   fish_t* const fish, double** positions, double* weights,
   double* weight_improvements, int n, struct setup_info_t* const setup
 );
+// Version B
+//void collective_volitive_move(
+//  fish_t* const fish, const fish_t* const fishes, int n, struct setup_info_t* const setup
+//);
 void decrease_step(struct setup_info_t* setup);
 /******************************************************************************/
 

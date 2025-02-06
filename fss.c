@@ -145,6 +145,7 @@ void collective_instinctive_move(
   }
 }
 
+// Version A
 void collective_volitive_move(
   fish_t* const fish, double** positions, double* weights,
   double* weight_improvements, int n, struct setup_info_t* const setup
@@ -207,4 +208,62 @@ void decrease_step(struct setup_info_t* setup) {
   setup->step_ind = setup->search_space_width * setup->step_ind_perc;
   setup->step_vol_perc -= setup->step_vol_perc_dec;
   setup->step_vol = setup->search_space_width * setup->step_vol_perc;
+}
+
+/******************************************************************************/
+// Version B
+void collective_volitive_move(
+  fish_t* const fish, const fish_t* const fishes, int n, struct setup_info_t* const setup
+) {
+  double baricenter[DIM_COUNT] = {0};
+  double total_weight_improvement = 0;
+  double total_weight = 0;
+
+  // Compute the baricenter and the sum of all weight_improvements
+  for (int i = 0; i < n; i++) {
+    for (int j = 0; j < DIM_COUNT; j++) {
+      baricenter[j] += fishes[i].positions[j] * fishes[i].weight;
+    }
+    total_weight += fishes[i].weight;
+    total_weight_improvement += fishes[i].weight_improvement;
+  }
+
+  for (int j = 0; j < DIM_COUNT; j++) {
+    baricenter[j] /= total_weight;
+  }
+
+  // If weights increased, we need to compact the group so that fishes move
+  // towards the baricenter
+  int inc = -1;
+  if (total_weight_improvement < 0) {
+    inc = +1;
+  }
+
+  // Compute the difference vector and its magnitude
+  // NOTE: magnited leads to smother movement of fishes, but the end results
+  // after some iterations is the same as when magnitude is not involved
+  double diff[DIM_COUNT];
+  double magnitude = 0;
+  for (int j = 0; j < DIM_COUNT; j++) {
+    diff[j] = fish->positions[j] - baricenter[j];
+    magnitude += diff[j] * diff[j];
+  }
+  magnitude = sqrt(magnitude);
+
+  // Normalize the difference vector
+  if (magnitude > 0) {
+    for (int j = 0; j < DIM_COUNT; j++) {
+      diff[j] /= magnitude;
+    }
+  }
+
+  for (int j = 0; j < DIM_COUNT; j++) {
+    fish->positions[j] += inc * setup->step_vol * rand_real(0, 1) * diff[j];
+    // Check that position is within bounds
+    if (fish->positions[j] > setup->func.params.search_space_max) {
+      fish->positions[j] = setup->func.params.search_space_max;
+    } else if (fish->positions[j] < setup->func.params.search_space_min) {
+      fish->positions[j] = setup->func.params.search_space_min;
+    }
+  }
 }
