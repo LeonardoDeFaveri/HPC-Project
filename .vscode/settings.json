@@ -59,7 +59,13 @@
   "files.associations": {
     "*.arb": "json",
     "typeinfo": "c",
-    "type_traits": "c"
+    "type_traits": "c",
+    "*.tcc": "c",
+    "fstream": "c",
+    "istream": "c",
+    "ostream": "c",
+    "sstream": "c",
+    "cmath": "c"
   },
   "editor.tabSize": 2
 }
