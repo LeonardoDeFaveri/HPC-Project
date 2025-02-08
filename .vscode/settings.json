@@ -65,7 +65,8 @@
     "istream": "c",
     "ostream": "c",
     "sstream": "c",
-    "cmath": "c"
+    "cmath": "c",
+    "test_functions.h": "c"
   },
   "editor.tabSize": 2
 }

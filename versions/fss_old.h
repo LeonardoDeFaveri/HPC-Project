@@ -1,7 +1,7 @@
-#ifndef FSS_H
-#define FSS_H
+#ifndef FSS_OLD_H
+#define FSS_OLD_H
 
-#include "test_functions.h"
+#include "../test_functions.h"
 
 #define CYCLES_LIMIT 10000
 #define W_SCALE 5000.0
@@ -26,7 +26,23 @@
 #define VOL_INIT_PERCENTAGE 0.01
 #define VOL_FINAL_PERCENTAGE 0.0001
 
-struct fish_t {
+struct fish_info_t {
+  /**
+   * How much weight does this fish have when deciding the collective displacement?
+   */
+  double weight;
+  /**
+   * Amount of food available in current position
+   */
+  double food_amount;
+  /**
+   * After a dispament, how much has the amount of food improved?
+   */
+  double food_improvement;
+  /**
+   * How much weight changed after feeding ioperator.
+   */
+  double weight_improvement;
   /**
    * Current position across all dimensions.
    */
@@ -35,22 +51,10 @@ struct fish_t {
    * How has the position of the fish changed to get to the current one?
    */
   double displacements[DIM_COUNT];
-  /**
-   * How much weight does this fish have when deciding the collective displacement?
-   */
-  double weight;
-  /**
-   * How much weight changed after feeding ioperator.
-   */
-  double weight_improvement;
-  /**
-   * After a dispament, how much has the amount of food improved?
-   */
-  double food_improvement;
 };
-typedef struct fish_t fish_t;
+typedef struct fish_info_t fish_info_t;
 
-struct setup_info_t {
+struct fish_t {
   /**
    * Test function.
    */
@@ -85,31 +89,26 @@ struct setup_info_t {
    * other fishes?
    */
   double step_vol;
+  /**
+   * Information of a fish that will have to be shared with other fishes
+   */
+  fish_info_t info;
 };
+typedef struct fish_t fish_t;
 
 /**
- * Initializes an experiment setup using function `f`.
+ * Given a test function `f`, initializes `fish`. Its initial position (i.e.
+ * function value) are randomly generated.
  */
-void init_setup(struct setup_info_t* setup, const struct func_t* const f);
-/**
- * Given an experiment setup initializes fish properties.
- * Fish initial position is randomly generated.
- */
-void init(fish_t* const fish, const struct setup_info_t* const setup);
+void init(fish_t* const fish, struct func_t* const f);
 
 /******************************************************************************/
 // FSS operations
-void individual_move(fish_t* const fish, struct setup_info_t* const setup);
-void feeding_operator(fish_t* const fish, double max_food_improvement);
-void collective_instinctive_move(
-  fish_t* const fish, double** displacements, double* food_improvements, int n,
-  struct setup_info_t* const setup
-);
-void collective_volitive_move(
-  fish_t* const fish, const fish_t* const fishes, int n,
-  struct setup_info_t* const setup
-);
-void decrease_step(struct setup_info_t* setup);
+void individual_move(fish_t* const fish);
+void feeding_operator(fish_t* const fish, const fish_info_t* const fishes, int n);
+void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fishes, int n);
+void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n);
+void decrease_step(fish_t* const fish);
 /******************************************************************************/
 
 #endif

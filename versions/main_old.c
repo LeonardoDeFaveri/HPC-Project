@@ -3,57 +3,34 @@
  * value need other fishes informations to be computed, these are exchanged and
  * then each fish computes the value.
  */
-
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <time.h>
-#include "fss.h"
-#include "test_functions.h"
-#include <float.h>
+#include "fss_old.h"
+#include "../test_functions.h"
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
+  #define PRINT_INFO(desc, rank, local_id, info) PRINT("FISH[%d-%d] %s: {\n\tfood: %f\n\tweight: %f\n\tpositions: %f, %f\n}\n", rank, local_id, desc, info.food_amount, info.weight, info.positions[0], info.positions[1])
   #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight) PRINT("FISH[%d-%d] AT CYCLE[%d] %s POS: %f, %f WEIGHT: %f\n", rank, local_id, cycle, desc, pos_x, pos_y, weight)
   #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight) if (rank == 0) PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #else
   #define PRINT(f, ...)
+  #define PRINT_INFO(desc, rank, local_id, info)
   #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
   #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #endif
 
-void run(
-  int world_size, int rank, struct setup_info_t* setup, int total_fishes,
-  MPI_Datatype* mpi_dimensions_t, MPI_Datatype* mpi_volitive_t
-);
-/**
- * Returns the maximum value in a vector `values` of length `n`.
- */
-double max(double* values, int n);
-/**
- * This type allows transferring all dimensions as they were a single value.
- */
+void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes);
 MPI_Datatype register_dimensions_t();
-/**
- * Packs together all the info necessary to perform the volitive step of a fish.
- */
-MPI_Datatype register_volitive_t();
-/**
- * This function allocates a matrix in which all rows are contiguous in memory.
- * 
- * (This was necessary for some of my previous tries, but maybe can be avoided
- * in this version of the code)
- */
-double **allocate_matrix (int rows, int cols);
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   int world_size, rank;
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Datatype mpi_dimensions_t = register_dimensions_t();
-  MPI_Datatype mpi_volitive_t = register_volitive_t();
 
   if (argc < 4) {
     if (rank == 0) {
@@ -61,9 +38,8 @@ int main(int argc, char **argv) {
     }
   } else {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
-    struct setup_info_t setup;
-    init_setup(&setup, &function);
     int max_fishes_count = atoi(argv[2]);
+    MPI_Datatype mpi_fish_info = register_dimensions_t();
 
     FILE *output;
     if (rank == 0) {
@@ -74,7 +50,7 @@ int main(int argc, char **argv) {
       // Waits for every process to arrive here before proceeding
       MPI_Barrier(MPI_COMM_WORLD);
       double start_time = MPI_Wtime();
-      run(world_size, rank, &setup, fishes_count, &mpi_dimensions_t, &mpi_volitive_t);
+      run(world_size, rank, function, &mpi_fish_info, fishes_count);
       double elapsed_time = MPI_Wtime() - start_time;
 
       if (rank == 0) {
@@ -85,16 +61,15 @@ int main(int argc, char **argv) {
     if (rank == 0) {
       fclose(output);
     }
+
+    MPI_Type_free(&mpi_fish_info);
   }
 
   MPI_Finalize();
   return 0;
 }
 
-void run(
-  int world_size, int rank, struct setup_info_t* setup, int total_fishes,
-  MPI_Datatype* mpi_dimensions_t, MPI_Datatype* mpi_volitive_t
-) {
+void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes) {
   srand(time(NULL) + rank);
 
   /*
@@ -122,16 +97,12 @@ void run(
   }
 
   int total_size = world_size * tot;
+  fish_info_t* fishes = malloc(sizeof(fish_info_t) * total_size);
   fish_t* local_fishes = malloc(sizeof(fish_t) * tot);
-  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
-  // This array will be reused for both weight and food improvements
-  double* improvements = malloc(sizeof(double) * total_size);
-  // This array will be reused for both positions and displacements
-  double** positions = allocate_matrix(total_size, DIM_COUNT);
 
   // Initialize more-fishes than necessary, but fishes in excess won't be used
   for (int i = 0; i < tot; i++) {
-    init(&local_fishes[i], setup);
+    init(&local_fishes[i], &function);
   }
 
   // Open file for writing
@@ -146,14 +117,9 @@ void run(
   /****************************************************************************/
   #ifdef DEBUG
   for (int i = 0; i < tot; i++) {
-    int index = rank * tot + i;
-    for (int j = 0; j < DIM_COUNT; j++) {
-      positions[index][j] = local_fishes[i].positions[j];
-    }
-    weights[index] = local_fishes[i].weight;
+    fishes[rank * tot + i] = local_fishes[i].info;
   }
-  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *positions, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
-  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, weights, tot, MPI_DOUBLE, MPI_COMM_WORLD);
+  MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
   if (rank == 0) {
     int proc = -1;
     for (int i = 0; i < total_fishes; i++) {
@@ -162,7 +128,7 @@ void run(
       }
       fprintf(
         file, "%d,%d,%d,%f,%f,%f\n", -1, proc, i,
-        positions[i][0], positions[i][1], weights[i]
+        fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight
       );
     }
   }
@@ -171,71 +137,66 @@ void run(
 
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
-      individual_move(&local_fishes[i], setup);
+      individual_move(&local_fishes[i]);
       PRINT_POS0(
         "After individual move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
       );
     }
 
     for (int i = 0; i < tot; i++) {
-      improvements[rank * tot + i] = local_fishes[i].food_improvement;
+      fishes[rank * tot + i] = local_fishes[i].info;
     }
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, improvements, tot, MPI_DOUBLE, MPI_COMM_WORLD);
+
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` of every fish
-      feeding_operator(&local_fishes[i], max(improvements, total_fishes));
+      feeding_operator(&local_fishes[i], fishes, total_fishes);
       PRINT_POS0(
         "After feeding operator", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
       );
     }
 
     for (int i = 0; i < tot; i++) {
-      int index = rank * tot + i;
-      for (int j = 0; j < DIM_COUNT; j++) {
-        positions[index][j] = local_fishes[i].displacements[j];
-      }
+      fishes[rank * tot + i] = local_fishes[i].info;
     }
-    
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *positions, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` and `displacement` of every fish
-      collective_instinctive_move(&local_fishes[i], positions, improvements, total_fishes, setup);
+      collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
       PRINT_POS0(
         "After collective instinctive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
       );
     }
 
-    MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
+    for (int i = 0; i < tot; i++) {
+      fishes[rank * tot + i] = local_fishes[i].info;
+    }
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
-      collective_volitive_move(&local_fishes[i], all_fishes, total_fishes, setup);
+      collective_volitive_move(&local_fishes[i], fishes, total_fishes);
       PRINT_POS0(
         "After collective volitive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
+        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
+        local_fishes[i].info.weight
       );
-    }
 
-    decrease_step(setup);
+      decrease_step(&local_fishes[i]);
+    }
 
     /**************************************************************************/
     /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
     /**************************************************************************/
     #ifdef DEBUG
     for (int i = 0; i < tot; i++) {
-      int index = rank * tot + i;
-      for (int j = 0; j < DIM_COUNT; j++) {
-        positions[index][j] = local_fishes[i].positions[j];
-      }
-      weights[index] = local_fishes[i].weight;
+      fishes[rank * tot + i] = local_fishes[i].info;
     }
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *positions, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
-    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, weights, tot, MPI_DOUBLE, MPI_COMM_WORLD);
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     if (rank == 0) {
       int proc = -1;
       for (int i = 0; i < total_fishes; i++) {
@@ -244,7 +205,7 @@ void run(
         }
         fprintf(
           file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i,
-          positions[i][0], positions[i][1], weights[i]
+          fishes[i].positions[0], fishes[i].positions[1], fishes[i].weight
         );
       }
     }
@@ -256,51 +217,25 @@ void run(
     fclose(file);
   }
 
-  free(improvements);
-  // Just one free because the matrix comes from a 1-D array
-  free(positions);
+  free(fishes);
   free(local_fishes);
-  free(all_fishes);
-}
-
-double max(double* values, int n) {
-  double m = -DBL_MAX;
-  for (int i = 0; i < n; i++) {
-    if (values[i] > m) {
-      m = values[i];
-    }
-  }
-  return m;
 }
 
 MPI_Datatype register_dimensions_t() {
-  MPI_Datatype mpi_position_t;
-  MPI_Type_vector(1, DIM_COUNT, 0, MPI_DOUBLE, &mpi_position_t);
-  MPI_Type_commit(&mpi_position_t);
-  return mpi_position_t;
-}
-
-MPI_Datatype register_volitive_t() {
-  const int n_fields = 3;
-  int block_lengths[] = {1, 1, DIM_COUNT};
-  MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-  MPI_Datatype mpi_volitive_t;
+  const int n_fields = 6;
+  int block_lengths[] = {1, 1, 1, 1, DIM_COUNT, DIM_COUNT};
+  MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
+  MPI_Datatype mpi_fish_info;
   MPI_Aint offset[n_fields];
 
-  offset[0] = offsetof(fish_t, weight);
-  offset[1] = offsetof(fish_t, weight_improvement);
-  offset[2] = offsetof(fish_t, positions);
+  offset[0] = offsetof(fish_info_t, weight);
+  offset[1] = offsetof(fish_info_t, food_amount);
+  offset[2] = offsetof(fish_info_t, food_improvement);
+  offset[3] = offsetof(fish_info_t, weight_improvement);
+  offset[4] = offsetof(fish_info_t, positions);
+  offset[5] = offsetof(fish_info_t, displacements);
 
-  MPI_Type_create_struct(n_fields, block_lengths, offset, field_types, &mpi_volitive_t);
-  MPI_Type_commit(&mpi_volitive_t);
-  return mpi_volitive_t;
-}
-
-double **allocate_matrix (int rows, int cols) {
-  double  *data   = malloc (rows * cols * sizeof(double));
-  double **matrix = malloc (rows * sizeof(double *));
-  for (int i = 0; i < rows; i++) {
-    matrix[i] = & (data[i * cols]);
-  }
-  return matrix;
+  MPI_Type_create_struct(n_fields, block_lengths, offset, field_types, &mpi_fish_info);
+  MPI_Type_commit(&mpi_fish_info);
+  return mpi_fish_info;
 }

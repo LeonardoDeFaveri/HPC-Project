@@ -1,7 +1,7 @@
-#ifndef FSS_H
-#define FSS_H
+#ifndef FSS_A_H
+#define FSS_A_H
 
-#include "test_functions.h"
+#include "../test_functions.h"
 
 #define CYCLES_LIMIT 10000
 #define W_SCALE 5000.0
@@ -106,8 +106,8 @@ void collective_instinctive_move(
   struct setup_info_t* const setup
 );
 void collective_volitive_move(
-  fish_t* const fish, const fish_t* const fishes, int n,
-  struct setup_info_t* const setup
+  fish_t* const fish, double** positions, double* weights,
+  double* weight_improvements, int n, struct setup_info_t* const setup
 );
 void decrease_step(struct setup_info_t* setup);
 /******************************************************************************/
