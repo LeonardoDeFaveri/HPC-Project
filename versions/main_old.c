@@ -87,10 +87,11 @@ void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fis
   if (rem != 0) {
     if ((rank + 1) * tot <= total_fishes) {
       total_local_fishes = tot;
-    } else if ((rank + 1) * tot > total_fishes && rank * tot <= total_fishes) {
-      total_local_fishes = rank * tot - total_fishes;
     } else {
-      total_local_fishes = 0;
+      // Leave all the remaining fishes to this process. This is guaranteed to
+      // be < total_local_fishes of the previous process, because otherwise
+      // rem != 0 would have been false
+      total_local_fishes = total_fishes - rank * tot;
     }
   } else {
     tot--;
