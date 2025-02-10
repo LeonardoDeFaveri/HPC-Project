@@ -58,7 +58,15 @@
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
   "files.associations": {
     "*.arb": "json",
-    "typeinfo": "c"
+    "typeinfo": "c",
+    "type_traits": "c",
+    "*.tcc": "c",
+    "fstream": "c",
+    "istream": "c",
+    "ostream": "c",
+    "sstream": "c",
+    "cmath": "c",
+    "test_functions.h": "c"
   },
   "editor.tabSize": 2
 }
