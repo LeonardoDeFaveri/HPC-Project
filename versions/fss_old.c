@@ -161,7 +161,7 @@ void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fi
 }
 
 // Computes baricenter and move fishes towards/away from it
-void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n, int i) {
+void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n) {
   double baricenter[DIM_COUNT] = {0};
   double total_weight_improvement = 0;
   double total_weight = 0;

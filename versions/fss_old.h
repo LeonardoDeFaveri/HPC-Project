@@ -1,7 +1,7 @@
 #ifndef FSS_OLD_H
 #define FSS_OLD_H
 
-#include "test_functions.h"
+#include "../test_functions.h"
 
 #define CYCLES_LIMIT 10000
 #define W_SCALE 5000.0
@@ -107,7 +107,7 @@ void init(fish_t* const fish, struct func_t* const f);
 void individual_move(fish_t* const fish);
 void feeding_operator(fish_t* const fish, const fish_info_t* const fishes, int n);
 void collective_instinctive_move(fish_t* const fish, const fish_info_t* const fishes, int n);
-void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n, int i);
+void collective_volitive_move(fish_t* const fish, const fish_info_t* const fishes, int n);
 void decrease_step(fish_t* const fish);
 /******************************************************************************/
 

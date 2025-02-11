@@ -7,8 +7,11 @@ SHELL := /bin/bash
 main: main.c test_functions.h test_functions.c fss.h fss.c
 	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./main.c ./test_functions.c ./fss.c -o main
 
-old: main_old.c test_functions.h test_functions.c fss_old.h fss_old.c
-	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./main_old.c ./test_functions.c ./fss_old.c -o main
+old: versions/main_old.c test_functions.h test_functions.c versions/fss_old.h versions/fss_old.c
+	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_old.c ./test_functions.c versions/fss_old.c -o main
+
+3_ag: versions/main_a.c test_functions.h test_functions.c versions/fss_a.h versions/fss_a.c
+	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_a.c ./test_functions.c versions/fss_a.c -o main
 
 allreduce: allreduce/main.c test_functions.h test_functions.c allreduce/fss.h allreduce/fss.c
 	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./allreduce/main.c ./test_functions.c ./allreduce/fss.c -o main

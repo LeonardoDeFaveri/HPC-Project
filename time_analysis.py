@@ -1,3 +1,4 @@
+import sys
 import csv
 import time
 
@@ -49,7 +50,7 @@ def print_efficiency(infos):
 
 infos = []
 
-with open('time_results.csv','r') as time_results_csv:
+with open(sys.argv[1],'r') as time_results_csv:
   plots = csv.reader(time_results_csv, delimiter=',')
   process_count = 0
 
