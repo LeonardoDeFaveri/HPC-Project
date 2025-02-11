@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
       // Waits for every process to arrive here before proceeding
       MPI_Barrier(MPI_COMM_WORLD);
       double start_time = MPI_Wtime();
@@ -139,30 +139,9 @@ void run(
   /****************************************************************************/
 
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
-    for (int i = 0; i < total_local_fishes; i++) {
-      individual_move(&local_fishes[i], setup);
-      PRINT_POS0(
-        "After individual move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
-    }
 
-    // Compute local maximum food improvement
-    double local_max_food_improvement = max(local_fishes, total_local_fishes);
-
-    // Compute global maximum food improvement with a single allreduce
-    double global_max_food_improvement;
-    MPI_Allreduce(&local_max_food_improvement, &global_max_food_improvement, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    for (int i = 0; i < total_local_fishes; i++) {
-      feeding_operator(&local_fishes[i], global_max_food_improvement);      
-      PRINT_POS0(
-        "After feeding operator", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
-    }
-    
+    individual_move(local_fishes, total_local_fishes, setup);
+    feeding_operator(local_fishes, total_local_fishes);
     collective_instinctive_move(local_fishes, total_local_fishes, setup);
     collective_volitive_move(local_fishes, total_local_fishes, setup);
 
@@ -191,16 +170,6 @@ void run(
 
   free(local_fishes);
   free(all_fishes);
-}
-
-double max(fish_t* values, int n) {
-  double m = -DBL_MAX;
-  for (int i = 0; i < n; i++) {
-    if (values[i].food_improvement > m) {
-      m = values[i].food_improvement;
-    }
-  }
-  return m;
 }
 
 MPI_Datatype register_volitive_t() {

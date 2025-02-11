@@ -99,14 +99,10 @@ void init(fish_t* const fish, const struct setup_info_t* const setup);
 
 /******************************************************************************/
 // FSS operations
-void individual_move(fish_t* const fish, struct setup_info_t* const setup);
-void feeding_operator(fish_t* const fish, double max_food_improvement);
+void individual_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
+void feeding_operator(fish_t* const local_fishes, int local_count);
 void collective_instinctive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
-void collective_volitive_move(
-  fish_t* const local_fishes,   // array of local fishes
-  int local_count,              // number of local fishes
-  struct setup_info_t* const setup
-);
+void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void decrease_step(struct setup_info_t* setup);
 /******************************************************************************/
 

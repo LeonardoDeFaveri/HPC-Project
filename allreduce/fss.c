@@ -3,6 +3,7 @@
 #include <float.h>
 #include <math.h>
 #include <mpi.h>
+
 /******************************************************************************/
 /*** UTILITY FUNCTIONS ********************************************************/
 /******************************************************************************/
@@ -51,6 +52,19 @@ double compute_amount_of_food(double value) {
     return DBL_MAX;
 }
 
+/**
+ * Returns the maximum food_improvement from an array of fishes
+ */
+double max_food_improvement(fish_t* fishes, int n) {
+  double m = -DBL_MAX;
+  for (int i = 0; i < n; i++) {
+    if (fishes[i].food_improvement > m) {
+      m = fishes[i].food_improvement;
+    }
+  }
+  return m;
+}
+
 /******************************************************************************/
 /*** FISH API & FSS MOVEMENT **************************************************/
 /******************************************************************************/
@@ -79,44 +93,55 @@ void init(fish_t* const fish, const struct setup_info_t* const setup) {
   fish->weight_improvement = 0;
 }
 
-void individual_move(fish_t* const fish, struct setup_info_t* const setup) {
-  // Update food amount to current position (since it changed from collective
-  // movements)
-  double curr_val = compute_amount_of_food(setup->func.f(fish->positions, DIM_COUNT));
+void individual_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup) {
 
-  double next_pos[DIM_COUNT];
-  compute_next_position(fish, &setup->func, setup->step_ind, next_pos);
+  for (int j = 0; j < local_count; j++) {
 
-  // By making comparisons on the amount of food available in a position instead
-  // of on the value of the functions being considered, we are allowed to always
-  // look for the smallest possible value
-  double next_val = compute_amount_of_food(setup->func.f(next_pos, DIM_COUNT));
+    // Update food amount to current position (since it changed from collective movements)
+    double curr_val = compute_amount_of_food(setup->func.f(local_fishes[j].positions, DIM_COUNT));
 
-  fish->food_improvement = next_val - curr_val;
-  // Checks if the new position is better than the current one
-  if (next_val >= curr_val) {
-    // The new position is better, so the fish moves
-    for (int i = 0; i < DIM_COUNT; i++) {
-      fish->displacements[i] = next_pos[i] - fish->positions[i];
-      fish->positions[i] = next_pos[i];
+    double next_pos[DIM_COUNT];
+    compute_next_position(&local_fishes[j], &setup->func, setup->step_ind, next_pos);
+
+    // By making comparisons on the amount of food available in a position instead
+    // of on the value of the functions being considered, we are allowed to always
+    // look for the smallest possible value
+    double next_val = compute_amount_of_food(setup->func.f(next_pos, DIM_COUNT));
+
+    local_fishes[j].food_improvement = next_val - curr_val;
+    // Checks if the new position is better than the current one
+    if (next_val >= curr_val) {
+      // The new position is better, so the fish moves
+      for (int i = 0; i < DIM_COUNT; i++) {
+        local_fishes[j].displacements[i] = next_pos[i] - local_fishes[j].positions[i];
+        local_fishes[j].positions[i] = next_pos[i];
+      }
+    } else {
+      // The new position is worse, so the fish stays in the current position
+      for (int i = 0; i < DIM_COUNT; i++) {
+        local_fishes[j].displacements[i] = 0;
     }
-  } else {
-    // The new position is worse, so the fish stays in the current position
-    for (int i = 0; i < DIM_COUNT; i++) {
-      fish->displacements[i] = 0;
-   }
+    }
   }
 }
 
-void feeding_operator(fish_t* const fish, double max_food_improvement) {
-  double new_weight = compute_weight(fish, max_food_improvement);
-  fish->weight_improvement = new_weight - fish->weight;
-  fish->weight = new_weight;
+void feeding_operator(fish_t* const local_fishes, int local_count) {
+  // Compute maximum food improvement among all processes
+  double local_max_food_improvement = max_food_improvement(local_fishes, local_count);
+  double global_max_food_improvement;
+  MPI_Allreduce(&local_max_food_improvement, &global_max_food_improvement, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  for (int i = 0; i < local_count; i++) {
+    double new_weight = compute_weight(&local_fishes[i], global_max_food_improvement);
+    local_fishes[i].weight_improvement = new_weight - local_fishes[i].weight;
+    local_fishes[i].weight = new_weight;
+  }
 }
 
 void collective_instinctive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup) {
-  // Pack local contributions: first DIM_COUNT slots for weighted displacements,
-  // last slot for total food improvement
+  // Pack local contributions: 
+  // - first DIM_COUNT slots for local weighted displacements,
+  // - last slot for local food improvement
   double local_sum[DIM_COUNT + 1] = {0};
   for (int i = 0; i < local_count; i++) {
     // Use only non-negative food improvements
@@ -151,35 +176,23 @@ void collective_instinctive_move(fish_t* const local_fishes, int local_count, st
   }
 }
 
-void decrease_step(struct setup_info_t* setup) {
-  setup->step_ind_perc -= setup->step_ind_perc_dec;
-  setup->step_ind = setup->search_space_width * setup->step_ind_perc;
-  setup->step_vol_perc -= setup->step_vol_perc_dec;
-  setup->step_vol = setup->search_space_width * setup->step_vol_perc;
-}
-
-/******************************************************************************/
-// Allreduce version
 void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup) 
 {
-  // Collect global sums for baricenter, weight and weight improvement computations
-  double local_data[DIM_COUNT + 2];
-  for (int j = 0; j < DIM_COUNT + 2; j++) {
-    local_data[j] = 0;
-  }
-  
-  // Pack the local contributions
+  // Pack local contributions:
+  // - first DIM_COUNT slots for local weighted displacements,
+  // - one slot for local weigth sum,
+  // - last slor for local food improvement
+  double local_data[DIM_COUNT + 2] = {0};
   for (int i = 0; i < local_count; i++) {
     for (int j = 0; j < DIM_COUNT; j++) {
       local_data[j] += local_fishes[i].positions[j] * local_fishes[i].weight;
     }
-    local_data[DIM_COUNT]     += local_fishes[i].weight;
+    local_data[DIM_COUNT] += local_fishes[i].weight;
     local_data[DIM_COUNT + 1] += local_fishes[i].weight_improvement;
   }
 
+  // Global reduction: sum weighted displacements, weight and weight improvements across processes
   double global_data[DIM_COUNT + 2] = {0};
-
-  // Single MPI_Allreduce for all contributions
   MPI_Allreduce(local_data, global_data, DIM_COUNT + 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   double global_baricenter[DIM_COUNT];
@@ -224,4 +237,12 @@ void collective_volitive_move(fish_t* const local_fishes, int local_count, struc
       }
     }
   }
+}
+
+// Decrease step_ind and step_vol values
+void decrease_step(struct setup_info_t* setup) {
+  setup->step_ind_perc -= setup->step_ind_perc_dec;
+  setup->step_ind = setup->search_space_width * setup->step_ind_perc;
+  setup->step_vol_perc -= setup->step_vol_perc_dec;
+  setup->step_vol = setup->search_space_width * setup->step_vol_perc;
 }
