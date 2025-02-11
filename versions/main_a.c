@@ -1,9 +1,19 @@
 /**
- * This version of the program puts most of the heavy workload on fishes. If a
- * value need other fishes informations to be computed, these are exchanged and
- * then each fish computes the value.
+ * This version of the program models fishes so that each fish only carries the
+ * information it requires to evolve (e.g. weight, position, displacement). Data
+ * associated to experiment (e.g. test function, step_ind, step_vol) are put in
+ * a different structure that is replicated among all processes instead of all
+ * fishes. This version uses call to `MPI_Allgather` to transfer only those data
+ * that are stricly necessary to perform a movement step or feeding. There is a
+ * call to `MPI_Allgather` for each piece of data, so if an operation requires
+ * multiple pieces of information, multiple calls are made.
+ * 
+ * TESTING:
+ * To test this version compiler the program with:
+ * `make 3_ag`
  */
 
+#include <float.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +21,6 @@
 #include <time.h>
 #include "fss_a.h"
 #include "../test_functions.h"
-#include <float.h>
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
@@ -24,7 +33,7 @@
 #endif
 
 /**
- * Define how many times the algorithms is executed for a single configuration
+ * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
 #define REP_COUNT 5

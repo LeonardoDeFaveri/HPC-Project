@@ -1,7 +1,15 @@
 /**
- * This version of the program puts most of the heavy workload on fishes. If a
- * value need other fishes informations to be computed, these are exchanged and
- * then each fish computes the value.
+ * This version of the program models fishes so that each of them has every
+ * information required for both fish advancement and experimen setup (e.g.
+ * test function, step_ind and step_vol). This version uses one call to
+ * `MPI_Allgather` before each operation with which all the information that
+ * are necessary for any operation are shared among all fishes. This is
+ * inherently ineficient because data not required to compute a movement step
+ * or feeding are shared nonetheless.
+ * 
+ * TESTING:
+ * To test this version compiler the program with:
+ * `make old`
  */
 #include <mpi.h>
 #include <stdio.h>
@@ -24,7 +32,7 @@
 #endif
 
 /**
- * Define how many times the algorithms is executed for a single configuration
+ * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
 #define REP_COUNT 5

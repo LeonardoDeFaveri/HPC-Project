@@ -3,15 +3,14 @@
  * information it requires to evolve (e.g. weight, position, displacement). Data
  * associated to experiment (e.g. test function, step_ind, step_vol) are put in
  * a different structure that is replicated among all processes instead of all
- * fishes. This version makes fishes mangaged by a process to evolve locally and
- * groups of fishes of different processes communicate only periodically to
- * adjust the global positioning of fishes. The goal of this version is to
- * reduce the number of inter-process communication to improve performance at
- * the expense of accuracy.
+ * fishes. This version uses call to `MPI_Allgather` to transfer only those data
+ * that are stricly necessary to perform a movement step or feeding. There is
+ * only one call to `MPI_Allgather` for each operation. MPI primitives and
+ * derived data types are used to achieve this.
  * 
  * TESTING:
  * To test this version compiler the program with:
- * `make`
+ * `make 1_ag`
  */
 
 #include <float.h>
@@ -20,8 +19,8 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <time.h>
-#include "fss.h"
-#include "test_functions.h"
+#include "fss_b.h"
+#include "../test_functions.h"
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
@@ -37,12 +36,7 @@
  * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 1
-/**
- * Defines how frequently different processes should talk each other. A value
- * of `1` means that communication happens at each cycle.
- */
-#define COMM_FREQ 0
+#define REP_COUNT 5
 
 void run(
   int world_size, int rank, int total_fishes, struct setup_info_t* setup,
@@ -51,7 +45,7 @@ void run(
 /**
  * Returns the maximum value in a vector `values` of length `n`.
  */
-double max(fish_t* values, int n);
+double max(double* values, int n);
 /**
  * This type allows transferring all dimensions as they were a single value.
  */
@@ -90,7 +84,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for (int j = 0; j < REP_COUNT; j++) {
         // Waits for every process to arrive here before proceeding
@@ -200,7 +194,12 @@ void run(
       );
     }
 
-    double max_f = max(local_fishes, total_local_fishes);
+    for (int i = 0; i < tot; i++) {
+      food_improvements[rank * tot + i] = local_fishes[i].food_improvement;
+    }
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, food_improvements, tot, MPI_DOUBLE, MPI_COMM_WORLD);    
+    double max_f = max(food_improvements, total_fishes);
+
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` of every fish
       feeding_operator(&local_fishes[i], max_f);
@@ -211,9 +210,17 @@ void run(
       );
     }
 
+    for (int i = 0; i < tot; i++) {
+      int index = rank * tot + i;
+      for (int j = 0; j < DIM_COUNT; j++) {
+        displacements[index][j] = local_fishes[i].displacements[j];
+      }
+    }
+    
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *displacements, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` and `displacement` of every fish
-      collective_instinctive_move(&local_fishes[i], local_fishes, total_local_fishes, setup);
+      collective_instinctive_move(&local_fishes[i], displacements, food_improvements, total_fishes, setup);
       PRINT_POS(
         "After collective instinctive move", cycle, rank, i,
         local_fishes[i].positions[0], local_fishes[i].positions[1],
@@ -221,8 +228,9 @@ void run(
       );
     }
 
+    MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
-      collective_volitive_move(&local_fishes[i], local_fishes, total_fishes, setup);
+      collective_volitive_move(&local_fishes[i], all_fishes, total_fishes, setup);
       PRINT_POS0(
         "After collective volitive move", cycle, rank, i,
         local_fishes[i].positions[0], local_fishes[i].positions[1],
@@ -231,10 +239,6 @@ void run(
     }
 
     decrease_step(setup);
-
-    if (COMM_FREQ != 0 && cycle % COMM_FREQ == 0) {
-      // Share information with other processes
-    }
 
     /**************************************************************************/
     /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
@@ -268,11 +272,11 @@ void run(
   free(all_fishes);
 }
 
-double max(fish_t* values, int n) {
+double max(double* values, int n) {
   double m = -DBL_MAX;
   for (int i = 0; i < n; i++) {
-    if (values[i].food_improvement > m) {
-      m = values[i].food_improvement;
+    if (values[i] > m) {
+      m = values[i];
     }
   }
   return m;

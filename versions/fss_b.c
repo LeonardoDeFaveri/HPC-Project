@@ -1,4 +1,4 @@
-#include "fss.h"
+#include "fss_b.h"
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
@@ -115,7 +115,7 @@ void feeding_operator(fish_t* const fish, double max_food_improvement) {
 }
 
 void collective_instinctive_move(
-  fish_t* const fish, const fish_t* const fishes, int n,
+  fish_t* const fish, double** displacements, double* food_improvements, int n,
   struct setup_info_t* const setup
 ) {
   double sum_displacements[DIM_COUNT] = {0};
@@ -123,9 +123,9 @@ void collective_instinctive_move(
 
   // Compute the sum of all displacements and the sum of all values
   for (int i = 0; i < n; i++) {
-    double food_improvement = fmax(fishes[i].food_improvement, 0.0);
+    double food_improvement = fmax(food_improvements[i], 0.0);
       for (int j = 0; j < DIM_COUNT; j++) {
-        sum_displacements[j] += fishes[i].displacements[j] * food_improvement;
+        sum_displacements[j] += displacements[i][j] * food_improvement;
       }
       total_value_improvement += food_improvement;
   }
