@@ -23,7 +23,16 @@
   #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #endif
 
-void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes);
+/**
+ * Define how many times the algorithms is executed for a single configuration
+ * (world_size, fishes_count).
+ */
+#define REP_COUNT 5
+
+void run(
+  int world_size, int rank, int total_fishes, struct func_t function,
+  MPI_Datatype *mpi_fish_info
+);
 MPI_Datatype register_dimensions_t();
 
 int main(int argc, char **argv) {
@@ -47,12 +56,16 @@ int main(int argc, char **argv) {
     }
 
     for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
-      // Waits for every process to arrive here before proceeding
-      MPI_Barrier(MPI_COMM_WORLD);
-      double start_time = MPI_Wtime();
-      run(world_size, rank, function, &mpi_fish_info, fishes_count);
-      double elapsed_time = MPI_Wtime() - start_time;
-
+      double elapsed_time = 0;
+      for (int j = 0; j < REP_COUNT; j++) {
+        // Waits for every process to arrive here before proceeding
+        MPI_Barrier(MPI_COMM_WORLD);
+        double start_time = MPI_Wtime();
+        run(world_size, rank, fishes_count, function, &mpi_fish_info);
+        elapsed_time += MPI_Wtime() - start_time;
+      }
+      // Takes the average of the results
+      elapsed_time /= REP_COUNT;
       if (rank == 0) {
         fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
       }
@@ -69,7 +82,10 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void run(int world_size, int rank, struct func_t function, MPI_Datatype *mpi_fish_info, int total_fishes) {
+void run(
+  int world_size, int rank, int total_fishes, struct func_t function,
+  MPI_Datatype *mpi_fish_info
+) {
   srand(time(NULL) + rank);
 
   /*
