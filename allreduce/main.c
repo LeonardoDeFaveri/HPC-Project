@@ -23,11 +23,12 @@
   #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #endif
 
-void run(int world_size, int rank, struct setup_info_t* setup, int total_fishes);
+void run(int world_size, int rank, struct setup_info_t* setup, int total_fishes, MPI_Datatype* mpi_volitive_t);
 /**
  * Returns the maximum value in a vector `values` of length `n`.
  */
-double max(double* values, int n);
+double max(fish_t* values, int n);
+MPI_Datatype register_volitive_t();
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -42,6 +43,7 @@ int main(int argc, char **argv) {
   } else {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
     struct setup_info_t setup;
+    MPI_Datatype mpi_volitive_t = register_volitive_t();
     int max_fishes_count = atoi(argv[2]);
 
     FILE *output;
@@ -49,12 +51,12 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
       // Waits for every process to arrive here before proceeding
       MPI_Barrier(MPI_COMM_WORLD);
       double start_time = MPI_Wtime();
       init_setup(&setup, &function);
-      run(world_size, rank, &setup, fishes_count);
+      run(world_size, rank, &setup, fishes_count, &mpi_volitive_t);
       double elapsed_time = MPI_Wtime() - start_time;
 
       if (rank == 0) {
@@ -72,8 +74,9 @@ int main(int argc, char **argv) {
 }
 
 void run(
-  int world_size, int rank, struct setup_info_t* setup, int total_fishes) 
-{
+  int world_size, int rank, struct setup_info_t* setup, int total_fishes,
+  MPI_Datatype* mpi_volitive_t
+) {
   srand(time(NULL) + rank);
 
   /*
@@ -103,6 +106,10 @@ void run(
 
   fish_t* local_fishes = malloc(sizeof(fish_t) * tot);
 
+  // Just for plot
+  int total_size = world_size * tot;
+  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
+
   // Initialize more-fishes than necessary, but fishes in excess won't be used
   for (int i = 0; i < tot; i++) {
     init(&local_fishes[i], setup);
@@ -119,14 +126,15 @@ void run(
   /***** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION *****/
   /****************************************************************************/
   #ifdef DEBUG
-    if (rank == 0) {
-      for (int i = 0; i < total_local_fishes; i++) {
-        fprintf(
-          file, "%d,%d,%d,%f,%f,%f\n", -1, rank, i,
-          local_fishes[i].positions[0], local_fishes[i].positions[1], local_fishes[i].weight
-        );
-      }
+  MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
+  if (rank == 0) {
+    for (int i = 0; i < total_fishes; i++) {
+      fprintf(
+        file, "%d,%d,%d,%f,%f,%f\n", -1, rank, i,
+        all_fishes[i].positions[0], all_fishes[i].positions[1], all_fishes[i].weight
+      );
     }
+  }
   #endif
   /****************************************************************************/
 
@@ -141,7 +149,7 @@ void run(
     }
 
     // Compute local maximum food improvement
-    double local_max_food_improvement = max(&local_fishes->food_improvement, total_local_fishes);
+    double local_max_food_improvement = max(local_fishes, total_local_fishes);
 
     // Compute global maximum food improvement with a single allreduce
     double global_max_food_improvement;
@@ -164,14 +172,15 @@ void run(
     /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
     /**************************************************************************/
     #ifdef DEBUG
-      if (rank == 0) {
-        for (int i = 0; i < total_local_fishes; i++) {
-          fprintf(
-            file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i,
-            local_fishes[i].positions[0], local_fishes[i].positions[1], local_fishes[i].weight
-          );
-        }
+    MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
+    if (rank == 0) {
+      for (int i = 0; i < total_fishes; i++) {
+        fprintf(
+          file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i,
+          all_fishes[i].positions[0], all_fishes[i].positions[1], all_fishes[i].weight
+        );
       }
+    }
     #endif
     /**************************************************************************/
   }
@@ -181,14 +190,31 @@ void run(
   }
 
   free(local_fishes);
+  free(all_fishes);
 }
 
-double max(double* values, int n) {
+double max(fish_t* values, int n) {
   double m = -DBL_MAX;
   for (int i = 0; i < n; i++) {
-    if (values[i] > m) {
-      m = values[i];
+    if (values[i].food_improvement > m) {
+      m = values[i].food_improvement;
     }
   }
   return m;
+}
+
+MPI_Datatype register_volitive_t() {
+  const int n_fields = 3;
+  int block_lengths[] = {1, 1, DIM_COUNT};
+  MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
+  MPI_Datatype mpi_volitive_t;
+  MPI_Aint offset[n_fields];
+
+  offset[0] = offsetof(fish_t, weight);
+  offset[1] = offsetof(fish_t, weight_improvement);
+  offset[2] = offsetof(fish_t, positions);
+
+  MPI_Type_create_struct(n_fields, block_lengths, offset, field_types, &mpi_volitive_t);
+  MPI_Type_commit(&mpi_volitive_t);
+  return mpi_volitive_t;
 }
