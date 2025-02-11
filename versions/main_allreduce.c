@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <time.h>
-#include "fss.h"
+#include "fss_allreduce.h"
 #include "../test_functions.h"
 #include <float.h>
 

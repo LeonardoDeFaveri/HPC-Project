@@ -13,8 +13,8 @@ old: versions/main_old.c test_functions.h test_functions.c versions/fss_old.h ve
 3_ag: versions/main_a.c test_functions.h test_functions.c versions/fss_a.h versions/fss_a.c
 	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_a.c ./test_functions.c versions/fss_a.c -o main
 
-allreduce: allreduce/main.c test_functions.h test_functions.c allreduce/fss.h allreduce/fss.c
-	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./allreduce/main.c ./test_functions.c ./allreduce/fss.c -o main
+allreduce: versions/main_allreduce.c test_functions.h test_functions.c versions/fss_allreduce.h versions/fss_allreduce.c
+	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./versions/main_allreduce.c ./test_functions.c ./versions/fss_allreduce.c -o main
 
 .PHONY: clean
 clean:
