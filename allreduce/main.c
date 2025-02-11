@@ -205,16 +205,26 @@ double max(fish_t* values, int n) {
 
 MPI_Datatype register_volitive_t() {
   const int n_fields = 3;
-  int block_lengths[] = {1, 1, DIM_COUNT};
+  int block_lengths[] = {DIM_COUNT, 1, 1};
   MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-  MPI_Datatype mpi_volitive_t;
   MPI_Aint offset[n_fields];
+  offset[0] = offsetof(fish_t, positions);
+  offset[1] = offsetof(fish_t, weight);
+  offset[2] = offsetof(fish_t, weight_improvement);
 
-  offset[0] = offsetof(fish_t, weight);
-  offset[1] = offsetof(fish_t, weight_improvement);
-  offset[2] = offsetof(fish_t, positions);
+  MPI_Datatype tmp_mpi_t;
+  MPI_Type_create_struct(n_fields, block_lengths, offset, field_types, &tmp_mpi_t);
 
-  MPI_Type_create_struct(n_fields, block_lengths, offset, field_types, &mpi_volitive_t);
+  /**
+   * The following three lines are necessary if we want to send this data type
+   * multiple times with the same call (we want this). What these lines do is
+   * taking padding and any spaces the the compiler puts in the memory
+   * representation of the data type. In this case, since we're sending only
+   * some of the struct fields we need to consider that there are other fields
+   * in memory.
+   */
+  MPI_Datatype mpi_volitive_t;
+  MPI_Type_create_resized(tmp_mpi_t, offset[0], (MPI_Aint) sizeof(fish_t), &mpi_volitive_t);
   MPI_Type_commit(&mpi_volitive_t);
   return mpi_volitive_t;
 }
