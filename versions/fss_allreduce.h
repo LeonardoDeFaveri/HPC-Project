@@ -16,15 +16,15 @@
  * as percentage of the actual search space. For initial values, percentages are
  * `10%` (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
  */
-#define IND_INIT_PERCENTAGE 0.1
+#define IND_INIT_PERCENTAGE 0.001
 /**
  * Final values of `step_ind` and `step_vol` are set as percentages of the actual
  * search space. These percentages are `0.1%` (`0.001`), `0.01` (`0.0001`) and
  * `0.001` (`0.00001`).
  */
-#define IND_FINAL_PERCENTAGE 0.001
-#define VOL_INIT_PERCENTAGE 0.01
-#define VOL_FINAL_PERCENTAGE 0.0001
+#define IND_FINAL_PERCENTAGE 0.00001
+#define VOL_INIT_PERCENTAGE 0.001
+#define VOL_FINAL_PERCENTAGE 0.000001
 
 struct fish_t {
   /**
@@ -105,5 +105,10 @@ void collective_instinctive_move(fish_t* const local_fishes, int local_count, st
 void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void decrease_step(struct setup_info_t* setup);
 /******************************************************************************/
+
+/**
+ * Computes the mean anvd variance of the fitness function among all fishes.
+ */
+void compute_final_fitness(fish_t* const fishes, int local_count, int total_count, struct setup_info_t* const setup, double *mean, double *variance);
 
 #endif

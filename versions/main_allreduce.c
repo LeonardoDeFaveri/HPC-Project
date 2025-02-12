@@ -14,9 +14,12 @@
 #include <float.h>
 
 #ifdef DEBUG
-  #define PRINT(f, ...) printf(f, __VA_ARGS__)
-  #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight) PRINT("FISH[%d-%d] AT CYCLE[%d] %s POS: %f, %f WEIGHT: %f\n", rank, local_id, cycle, desc, pos_x, pos_y, weight)
-  #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight) if (rank == 0) PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
+  #define PRINT(f, ...)
+  #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
+  #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
+  // #define PRINT(f, ...) printf(f, __VA_ARGS__)
+  // #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight) PRINT("FISH[%d-%d] AT CYCLE[%d] %s POS: %f, %f WEIGHT: %f\n", rank, local_id, cycle, desc, pos_x, pos_y, weight)
+  // #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight) if (rank == 0) PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #else
   #define PRINT(f, ...)
   #define PRINT_POS(desc, cycle, rank, local_id, pos_x, pos_y, weight)
@@ -27,7 +30,7 @@
  * Define how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 5
+#define REP_COUNT 1
 
 void run(int world_size, int rank, int total_fishes, struct setup_info_t* setup, MPI_Datatype* mpi_volitive_t);
 /**
@@ -57,7 +60,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 32; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for(int j = 0; j < REP_COUNT; j++) {
       // Waits for every process to arrive here before proceeding
@@ -173,6 +176,28 @@ void run(
     #endif
     /**************************************************************************/
   }
+
+   if(rank == 0) {
+    double tmp_pos[DIM_COUNT] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    double tmp_pos2[DIM_COUNT] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    double tmp_pos3[DIM_COUNT] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
+    // double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
+    // double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
+    double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
+    double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
+    double tmp_fitness3 = setup->func.f(tmp_pos3, DIM_COUNT);
+    // for(int i=0; i<DIM_COUNT; i++) {
+    //   printf("%f ", tmp_pos2[i]);
+    // }
+    printf("\nFITNESS: %f, FITNESS2: %f, FITNESS3: %f\n", tmp_fitness, tmp_fitness2, tmp_fitness3);
+  }
+
+  double mean=0.0, variance=0.0;
+  compute_final_fitness(local_fishes, total_local_fishes, total_fishes, setup, &mean, &variance);
+  if(rank == 0) {
+    printf("FITNESS mean: %f, deviation: %f\n", mean, variance);
+  }
+  
 
   if (rank == 0) {
     fclose(file);
