@@ -23,7 +23,13 @@
   #define PRINT_POS0(desc, cycle, rank, local_id, pos_x, pos_y, weight)
 #endif
 
-void run(int world_size, int rank, struct setup_info_t* setup, int total_fishes, MPI_Datatype* mpi_volitive_t);
+/**
+ * Define how many times the algorithms is executed for a single configuration
+ * (world_size, fishes_count).
+ */
+#define REP_COUNT 5
+
+void run(int world_size, int rank, int total_fishes, struct setup_info_t* setup, MPI_Datatype* mpi_volitive_t);
 /**
  * Returns the maximum value in a vector `values` of length `n`.
  */
@@ -52,13 +58,17 @@ int main(int argc, char **argv) {
     }
 
     for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+      double elapsed_time = 0;
+      for(int j = 0; j < REP_COUNT; j++) {
       // Waits for every process to arrive here before proceeding
-      MPI_Barrier(MPI_COMM_WORLD);
-      double start_time = MPI_Wtime();
-      init_setup(&setup, &function);
-      run(world_size, rank, &setup, fishes_count, &mpi_volitive_t);
-      double elapsed_time = MPI_Wtime() - start_time;
-
+        MPI_Barrier(MPI_COMM_WORLD);
+        double start_time = MPI_Wtime();
+        init_setup(&setup, &function);
+        run(world_size, rank, fishes_count, &setup, &mpi_volitive_t);
+        elapsed_time += MPI_Wtime() - start_time;
+      }
+      // Takes the average of the results
+      elapsed_time /= REP_COUNT;
       if (rank == 0) {
         fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
       }
@@ -74,7 +84,7 @@ int main(int argc, char **argv) {
 }
 
 void run(
-  int world_size, int rank, struct setup_info_t* setup, int total_fishes,
+  int world_size, int rank, int total_fishes, struct setup_info_t* setup,
   MPI_Datatype* mpi_volitive_t
 ) {
   srand(time(NULL) + rank);
