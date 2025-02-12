@@ -105,8 +105,9 @@ void collective_instinctive_move(
   fish_t* const fish, double** displacements, double* food_improvements, int n,
   struct setup_info_t* const setup
 );
+void compute_baricenter(double* baricenter, const fish_t* const fishes, int n);
 void collective_volitive_move(
-  fish_t* const fish, const fish_t* const fishes, int n,
+  fish_t* const fish, const double* baricenter, double total_weight_improvement,
   struct setup_info_t* const setup
 );
 void decrease_step(struct setup_info_t* setup);

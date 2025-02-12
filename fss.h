@@ -105,8 +105,14 @@ void collective_instinctive_move(
   fish_t* const fish, const fish_t* const fishes, int n,
   struct setup_info_t* const setup
 );
+/**
+ * Computers the baricenter of the provided fishes. The result is stored into
+ * `baricenter` which is an array of size `DIM_COUNT` already allocated. The
+ * function returns the sum of the weight of all fishes which is later used.
+ */
+double compute_baricenter(double* baricenter, const fish_t* const fishes, int n);
 void collective_volitive_move(
-  fish_t* const fish, const fish_t* const fishes, int n,
+  fish_t* const fish, const double* baricenter, double total_weight_improvement,
   struct setup_info_t* const setup
 );
 void decrease_step(struct setup_info_t* setup);

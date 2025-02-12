@@ -15,6 +15,7 @@
  */
 
 #include <float.h>
+#include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,16 +38,17 @@
  * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 1
+#define REP_COUNT 5
 /**
  * Defines how frequently different processes should talk each other. A value
  * of `1` means that communication happens at each cycle.
  */
-#define COMM_FREQ 0
+#define COMM_FREQ 1
 
 void run(
-  int world_size, int rank, int total_fishes, struct setup_info_t* setup,
-  MPI_Datatype* mpi_dimensions_t, MPI_Datatype* mpi_volitive_t
+  int world_size, int rank, int total_fishes, double* baricenter,
+  struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t,
+  MPI_Datatype* mpi_volitive_t
 );
 /**
  * Returns the maximum value in a vector `values` of length `n`.
@@ -68,6 +70,8 @@ MPI_Datatype register_volitive_t();
  */
 double **allocate_matrix (int rows, int cols);
 
+double distance_from_optimum(double* positions, double optimum);
+
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
   int world_size, rank;
@@ -84,20 +88,26 @@ int main(int argc, char **argv) {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
     struct setup_info_t setup;
     int max_fishes_count = atoi(argv[2]);
+    /**
+     * This +1 is added to allow the average weight of local fishes to be shared
+     * together with the baricenter with a single message. The second +1 is for
+     * total_weight_improvement
+     */
+    double* baricenter = malloc(sizeof(double) * (DIM_COUNT + 2));
 
     FILE *output;
     if (rank == 0) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for (int j = 0; j < REP_COUNT; j++) {
         // Waits for every process to arrive here before proceeding
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
         init_setup(&setup, &function);
-        run(world_size, rank, fishes_count, &setup, &mpi_dimensions_t, &mpi_volitive_t);
+        run(world_size, rank, fishes_count, baricenter, &setup, &mpi_dimensions_t, &mpi_volitive_t);
         elapsed_time += MPI_Wtime() - start_time;
       }
       // Takes the average of the results
@@ -107,18 +117,22 @@ int main(int argc, char **argv) {
       }
     }
 
+    free(baricenter);
     if (rank == 0) {
       fclose(output);
     }
   }
 
+  MPI_Type_free(&mpi_dimensions_t);
+  MPI_Type_free(&mpi_volitive_t);
   MPI_Finalize();
   return 0;
 }
 
 void run(
-  int world_size, int rank, int total_fishes, struct setup_info_t* setup,
-  MPI_Datatype* mpi_dimensions_t, MPI_Datatype* mpi_volitive_t
+  int world_size, int rank, int total_fishes, double* baricenter,
+  struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t,
+  MPI_Datatype* mpi_volitive_t
 ) {
   srand(time(NULL) + rank);
 
@@ -149,11 +163,10 @@ void run(
     tot--;
   }
 
-  int total_size = world_size * tot;
   fish_t* local_fishes = malloc(sizeof(fish_t) * tot);
-  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
-  double* food_improvements = malloc(sizeof(double) * total_size);
-  double** displacements = allocate_matrix(total_size, DIM_COUNT);
+  // DIM_COUNT's position is for total_weight
+  // DIM_COUNT+1 is for total_weight_improvement
+  double** all_baricenters = allocate_matrix(world_size, DIM_COUNT + 2);
 
   // Initialize more-fishes than necessary, but fishes in excess won't be used
   for (int i = 0; i < tot; i++) {
@@ -171,6 +184,8 @@ void run(
   /***** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION *****/
   /****************************************************************************/
   #ifdef DEBUG
+  int total_size = world_size * tot;
+  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
   for (int i = 0; i < tot; i++) {
     all_fishes[rank * tot + i] = local_fishes[i];
   }
@@ -193,48 +208,82 @@ void run(
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i], setup);
-      PRINT_POS0(
-        "After individual move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
+      //PRINT_POS0(
+      //  "After individual move", cycle, rank, i,
+      //  local_fishes[i].positions[0], local_fishes[i].positions[1],
+      //  local_fishes[i].weight
+      //);
     }
 
     double max_f = max(local_fishes, total_local_fishes);
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` of every fish
       feeding_operator(&local_fishes[i], max_f);
-      PRINT_POS0(
-        "After feeding operator", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
+      //PRINT_POS0(
+      //  "After feeding operator", cycle, rank, i,
+      //  local_fishes[i].positions[0], local_fishes[i].positions[1],
+      //  local_fishes[i].weight
+      //);
     }
 
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` and `displacement` of every fish
       collective_instinctive_move(&local_fishes[i], local_fishes, total_local_fishes, setup);
-      PRINT_POS(
-        "After collective instinctive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
+      //PRINT_POS0(
+      //  "After collective instinctive move", cycle, rank, i,
+      //  local_fishes[i].positions[0], local_fishes[i].positions[1],
+      //  local_fishes[i].weight
+      //);
+    }
+
+    baricenter[DIM_COUNT] = compute_baricenter(baricenter, local_fishes, total_local_fishes);
+    // Computes total_weight_improvement
+    baricenter[DIM_COUNT + 1] = 0;
+    for (int i = 0; i < total_local_fishes; i++) {
+      baricenter[DIM_COUNT + 1] += local_fishes[i].weight_improvement;
     }
 
     for (int i = 0; i < total_local_fishes; i++) {
-      collective_volitive_move(&local_fishes[i], local_fishes, total_fishes, setup);
-      PRINT_POS0(
-        "After collective volitive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
+      collective_volitive_move(&local_fishes[i], baricenter, baricenter[DIM_COUNT + 1], setup);
+      //PRINT_POS0(
+      //  "After collective volitive move", cycle, rank, i,
+      //  local_fishes[i].positions[0], local_fishes[i].positions[1],
+      //  local_fishes[i].weight
+      //);
     }
-
-    decrease_step(setup);
 
     if (COMM_FREQ != 0 && cycle % COMM_FREQ == 0) {
       // Share information with other processes
+      // Computes the average weight of this group of fishes
+      baricenter[DIM_COUNT] /= world_size;
+      MPI_Allgather(baricenter, 1, *mpi_dimensions_t, *all_baricenters, 1, *mpi_dimensions_t, MPI_COMM_WORLD);
+
+      // Computes the global baricenter, i.e. the baricenter of all baricenters
+      for (int i = 0; i < DIM_COUNT; i++) {
+        baricenter[i] = 0;
+      }
+    
+      double total_weight = 0;
+      double total_weight_improvement = 0;
+      for (int i = 0; i < world_size; i++) {
+        for (int j = 0; j < DIM_COUNT; j++) {
+          baricenter[j] += all_baricenters[i][j] * all_baricenters[i][DIM_COUNT];
+        }
+        total_weight += all_baricenters[i][DIM_COUNT];
+        total_weight_improvement += all_baricenters[i][DIM_COUNT + 1];
+      }
+    
+      for (int j = 0; j < DIM_COUNT; j++) {
+        baricenter[j] /= total_weight;
+      }
+
+      // Move all fishes towards the global baricenter
+      for (int i = 0; i < total_local_fishes; i++) {
+        collective_volitive_move(&local_fishes[i], baricenter, total_weight_improvement, setup);
+      }
     }
+
+    decrease_step(setup);
 
     /**************************************************************************/
     /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
@@ -261,11 +310,13 @@ void run(
     fclose(file);
   }
 
-  free(food_improvements);
-  // Just one free because the matrix comes from a 1-D array
-  free(displacements);
   free(local_fishes);
+  // Just one free because the matrix comes from a 1-D array
+  free(all_baricenters);
+
+  #ifdef DEBUG
   free(all_fishes);
+  #endif
 }
 
 double max(fish_t* values, int n) {
@@ -280,7 +331,7 @@ double max(fish_t* values, int n) {
 
 MPI_Datatype register_dimensions_t() {
   MPI_Datatype mpi_position_t;
-  MPI_Type_vector(1, DIM_COUNT, 0, MPI_DOUBLE, &mpi_position_t);
+  MPI_Type_vector(1, DIM_COUNT + 2, 0, MPI_DOUBLE, &mpi_position_t);
   MPI_Type_commit(&mpi_position_t);
   return mpi_position_t;
 }
@@ -318,4 +369,15 @@ double **allocate_matrix(int rows, int cols) {
     matrix[i] = &(data[i * cols]);
   }
   return matrix;
+}
+
+double distance_from_optimum(double* positions, double optimum) {
+  double diff[DIM_COUNT];
+  double magnitude = 0;
+  for (int j = 0; j < DIM_COUNT; j++) {
+    diff[j] = positions[j] - optimum;
+    magnitude += diff[j] * diff[j];
+  }
+  magnitude = sqrt(magnitude);
+  return magnitude;
 }

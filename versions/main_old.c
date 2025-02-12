@@ -41,7 +41,7 @@ void run(
   int world_size, int rank, int total_fishes, struct func_t function,
   MPI_Datatype *mpi_fish_info
 );
-MPI_Datatype register_dimensions_t();
+MPI_Datatype register_fish_info_t();
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
   } else {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
     int max_fishes_count = atoi(argv[2]);
-    MPI_Datatype mpi_fish_info = register_dimensions_t();
+    MPI_Datatype mpi_fish_info = register_fish_info_t();
 
     FILE *output;
     if (rank == 0) {
@@ -246,7 +246,7 @@ void run(
   free(local_fishes);
 }
 
-MPI_Datatype register_dimensions_t() {
+MPI_Datatype register_fish_info_t() {
   const int n_fields = 6;
   int block_lengths[] = {1, 1, 1, 1, DIM_COUNT, DIM_COUNT};
   MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};

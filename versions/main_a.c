@@ -12,7 +12,7 @@
  * To test this version compiler the program with:
  * `make 3_ag`
  */
-
+#include <math.h>
 #include <float.h>
 #include <mpi.h>
 #include <stdio.h>
@@ -39,8 +39,8 @@
 #define REP_COUNT 5
 
 void run(
-  int world_size, int rank, int total_fishes, struct setup_info_t* setup,
-  MPI_Datatype* mpi_dimensions_t
+  int world_size, int rank, int total_fishes, double* baricenter,
+  struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t
 );
 /**
  * Returns the maximum value in a vector `values` of length `n`.
@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
     struct setup_info_t setup;
     int max_fishes_count = atoi(argv[2]);
+    double *baricenter = malloc(sizeof(double) * DIM_COUNT);
 
     FILE *output;
     if (rank == 0) {
@@ -86,11 +87,9 @@ int main(int argc, char **argv) {
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
         init_setup(&setup, &function);
-        run(world_size, rank, fishes_count, &setup, &mpi_dimensions_t);
+        run(world_size, rank, fishes_count, baricenter, &setup, &mpi_dimensions_t);
         elapsed_time += MPI_Wtime() - start_time;
       }
-      // Takes the average of the results
-      elapsed_time /= REP_COUNT;
       if (rank == 0) {
         fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
       }
@@ -99,15 +98,17 @@ int main(int argc, char **argv) {
     if (rank == 0) {
       fclose(output);
     }
+    free(baricenter);
   }
 
+  MPI_Type_free(&mpi_dimensions_t);
   MPI_Finalize();
   return 0;
 }
 
 void run(
-  int world_size, int rank, int total_fishes, struct setup_info_t* setup,
-  MPI_Datatype* mpi_dimensions_t
+  int world_size, int rank, int total_fishes, double* baricenter,
+  struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t
 ) {
   srand(time(NULL) + rank);
 
@@ -237,10 +238,13 @@ void run(
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *positions, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, improvements, tot, MPI_DOUBLE, MPI_COMM_WORLD);
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, weights, tot, MPI_DOUBLE, MPI_COMM_WORLD);
-
+    compute_baricenter(baricenter, positions, weights, total_fishes);
+    double total_weight_improvement = 0;
+    for (int i = 0; i < total_fishes; i++) {
+      total_weight_improvement += improvements[i];
+    }
     for (int i = 0; i < total_local_fishes; i++) {
-      //collective_volitive_move(&local_fishes[i], all_fishes, total_fishes, setup);
-      collective_volitive_move(&local_fishes[i], positions, weights, improvements, total_fishes, setup);
+      collective_volitive_move(&local_fishes[i], baricenter, total_weight_improvement, setup);
       PRINT_POS0(
         "After collective volitive move", cycle, rank, i,
         local_fishes[i].positions[0], local_fishes[i].positions[1],
