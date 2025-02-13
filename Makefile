@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 #-------------------------------------------------------------------------------
 # Comment this line before computing execution times
-# DEBUG := "-DDEBUG"
+DEBUG := "-DDEBUG"
 #-------------------------------------------------------------------------------
 
 main: main.c test_functions.h test_functions.c fss.h fss.c
@@ -15,6 +15,9 @@ old: versions/main_old.c test_functions.h test_functions.c versions/fss_old.h ve
 
 allreduce: versions/main_allreduce.c test_functions.h test_functions.c versions/fss_allreduce.h versions/fss_allreduce.c
 	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) ./versions/main_allreduce.c ./test_functions.c ./versions/fss_allreduce.c -o main
+
+1_ag: versions/main_b.c test_functions.h test_functions.c versions/fss_b.h versions/fss_b.c
+	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_b.c ./test_functions.c versions/fss_b.c -o main
 
 .PHONY: clean
 clean:

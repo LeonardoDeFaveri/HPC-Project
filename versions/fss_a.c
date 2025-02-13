@@ -145,28 +145,30 @@ void collective_instinctive_move(
   }
 }
 
-// Version A
-void collective_volitive_move(
-  fish_t* const fish, double** positions, double* weights,
-  double* weight_improvements, int n, struct setup_info_t* const setup
+void compute_baricenter(
+  double* baricenter, double** positions, const double* weights, int n
 ) {
-  double baricenter[DIM_COUNT] = {0};
-  double total_weight_improvement = 0;
-  double total_weight = 0;
+  for (int i = 0; i < DIM_COUNT; i++) {
+    baricenter[i] = 0;
+  }
 
-  // Compute the baricenter and the sum of all weight_improvements
+  double total_weight = 0;
   for (int i = 0; i < n; i++) {
     for (int j = 0; j < DIM_COUNT; j++) {
       baricenter[j] += positions[i][j] * weights[i];
     }
     total_weight += weights[i];
-    total_weight_improvement += weight_improvements[i];
   }
 
   for (int j = 0; j < DIM_COUNT; j++) {
     baricenter[j] /= total_weight;
   }
+}
 
+void collective_volitive_move(
+  fish_t* const fish, const double* baricenter, double total_weight_improvement,
+  struct setup_info_t* const setup
+) {
   // If weights increased, we need to compact the group so that fishes move
   // towards the baricenter
   int inc = -1;
@@ -175,7 +177,7 @@ void collective_volitive_move(
   }
 
   // Compute the difference vector and its magnitude
-  // NOTE: magnitude leads to smother movement of fishes, but the end result
+  // NOTE: magnitude leads to smother movement of fishes, but the end results
   // after some iterations is the same as when magnitude is not involved
   double diff[DIM_COUNT];
   double magnitude = 0;
