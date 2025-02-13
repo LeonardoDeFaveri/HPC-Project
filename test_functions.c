@@ -31,7 +31,7 @@ double griewank(double *x, int n) {
   double prod = 1;
   for (int i = 0; i < n; i++)
   {
-    prod *= cos(x[i] / sqrt(i));
+    prod *= cos(x[i] / sqrt(i + 1));
   }
   result -= prod;
   return result;
