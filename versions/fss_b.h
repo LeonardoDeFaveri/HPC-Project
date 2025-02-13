@@ -40,13 +40,17 @@ struct fish_t {
    */
   double weight;
   /**
-   * How much weight changed after feeding ioperator.
+   * How much weight changed after feeding operator.
    */
   double weight_improvement;
   /**
    * After a dispament, how much has the amount of food improved?
    */
   double food_improvement;
+  /**
+   * Value of the fitness function in this position.
+   */
+  double value;
 };
 typedef struct fish_t fish_t;
 

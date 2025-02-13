@@ -228,6 +228,40 @@ void run(
 
     decrease_step(setup);
 
+    // Breeding operator
+    double min_v = DBL_MAX, max_v1 = -DBL_MAX, max_v2 = -DBL_MAX;
+    int min, max_1, max_2;
+    // Gathers the value of the fitness function of each fish
+    for (int i = 0; i < tot; i++) {
+      food_improvements[rank * tot + i] = local_fishes[i].value;
+    }
+    MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, food_improvements, tot, MPI_DOUBLE, MPI_COMM_WORLD);    
+    for (int i = 0; i < total_fishes; i++) {
+      double value = food_improvements[i];
+      if (value > max_v1) {
+        max_v2 = max_v1;
+        max_2 = max_1;
+        max_v1 = value;
+        max_1 = i;
+      } else if (value > max_v2) {
+        max_v2 = value;
+        max_2 = i;
+      } else if (value < min_v) {
+        min_v = value;
+        min = i;
+      }
+    }
+    if (rank * tot <= min && (rank + 1) * tot > min) {
+      // This process owns the weakest fish
+      local_fishes[min].weight = (all_fishes[max_1].weight + all_fishes[max_2].weight) / 2;
+      for (int j = 0; j < DIM_COUNT; j++) {
+        local_fishes[min].positions[j] = (
+          all_fishes[max_1].positions[j] +
+          all_fishes[max_2].positions[j]
+        ) / 2;
+      }
+    }
+
     /**************************************************************************/
     /**** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION ****/
     /**************************************************************************/

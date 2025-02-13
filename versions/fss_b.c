@@ -82,29 +82,30 @@ void init(fish_t* const fish, const struct setup_info_t* const setup) {
 void individual_move(fish_t* const fish, struct setup_info_t* const setup) {
   // Update food amount to current position (since it changed from collective
   // movements)
-  double curr_val = compute_amount_of_food(setup->func.f(fish->positions, DIM_COUNT));
+  double curr_value = setup->func.f(fish->positions, DIM_COUNT);
+  double curr_food = compute_amount_of_food(curr_value);
 
   double next_pos[DIM_COUNT];
   compute_next_position(fish, &setup->func, setup->step_ind, next_pos);
 
-  // By making comparisons on the amount of food available in a position instead
-  // of on the value of the functions being considered, we are allowed to always
-  // look for the smallest possible value
-  double next_val = compute_amount_of_food(setup->func.f(next_pos, DIM_COUNT));
+  double next_value = setup->func.f(next_pos, DIM_COUNT);
+  double next_food = compute_amount_of_food(next_value);
 
-  fish->food_improvement = next_val - curr_val;
+  fish->food_improvement = next_food - curr_food;
   // Checks if the new position is better than the current one
-  if (next_val >= curr_val) {
+  if (next_food >= curr_food) {
     // The new position is better, so the fish moves
     for (int i = 0; i < DIM_COUNT; i++) {
       fish->displacements[i] = next_pos[i] - fish->positions[i];
       fish->positions[i] = next_pos[i];
     }
+    fish->value = next_value;
   } else {
     // The new position is worse, so the fish stays in the current position
     for (int i = 0; i < DIM_COUNT; i++) {
       fish->displacements[i] = 0;
-   }
+    }
+    fish->value = curr_food;
   }
 }
 
