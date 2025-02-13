@@ -41,15 +41,37 @@ int main(int argc, char **argv) {
   MPI_Comm_size(MPI_COMM_WORLD, &world_size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  if (argc < 4) {
-    if (rank == 0) {
-      fprintf(stderr, "You should provide a function name as an integer in (0, 4), the maximum number of fishes and a path to the output file\n");
+  // Expected usage:
+    // ./main_allreduce <test_function> <max_fishes_count> <results_file>
+    // Optionally: <ind_init> <ind_final> <vol_init> <vol_final>
+    if(argc < 4) {
+      if(rank == 0) {
+        fprintf(stderr, "Usage: %s <test_function> <max_fishes_count> <results_file> [ind_init ind_final vol_init vol_final]\n", argv[0]);
+        }
+      } else {
+
+    int test_func = atoi(argv[1]);
+    int max_fishes_count = atoi(argv[2]);
+    char *results_file = argv[3];
+
+    // Defaults: use -1 to indicate fallback to macros
+    double ind_init  = -1;
+    double ind_final = -1;
+    double vol_init  = -1;
+    double vol_final = -1;
+    
+    if(argc >= 8) {
+        ind_init  = atof(argv[4]);
+        ind_final = atof(argv[5]);
+        vol_init  = atof(argv[6]);
+        vol_final = atof(argv[7]);
+        if(rank == 0)
+          printf("func: %d, ind: %f - %f, vol: %f - %f,", test_func, ind_init, ind_final, vol_init, vol_final);
     }
-  } else {
-    const struct func_t function = get_function((enum func_name) atoi(argv[1]));
+
+    const struct func_t function = get_function((enum func_name) test_func);
     struct setup_info_t setup;
     MPI_Datatype mpi_volitive_t = register_volitive_t();
-    int max_fishes_count = atoi(argv[2]);
 
     FILE *output;
     if (rank == 0) {
@@ -62,7 +84,7 @@ int main(int argc, char **argv) {
       // Waits for every process to arrive here before proceeding
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
-        init_setup(&setup, &function);
+        init_setup(&setup, &function, ind_init, ind_final, vol_init, vol_final);
         run(world_size, rank, fishes_count, &setup, &mpi_volitive_t);
         elapsed_time += MPI_Wtime() - start_time;
       }
@@ -197,7 +219,7 @@ void run(
   double min_fitness = 0.0;
   compute_min_fitness(local_fishes, total_local_fishes, &min_fitness, setup);
   if(rank == 0) {
-    printf("Minimum fitness: %f\n", min_fitness);
+    printf("  minimum fitness: %f\n", min_fitness);
   }
 
 

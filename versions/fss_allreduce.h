@@ -88,9 +88,12 @@ struct setup_info_t {
 };
 
 /**
- * Initializes an experiment setup using function `f`.
+ * Initializes an experiment setup using function `f` and the given percentages.
+ * If any parameter is negative, the default macro value is used.
  */
-void init_setup(struct setup_info_t* setup, const struct func_t* const f);
+void init_setup(struct setup_info_t* setup, const struct func_t* const f, 
+  double ind_init_perc, double ind_final_perc,
+  double vol_init_perc, double vol_final_perc);
 /**
  * Given an experiment setup initializes fish properties.
  * Fish initial position is randomly generated.

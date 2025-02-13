@@ -51,7 +51,7 @@ double schwefel(double *x, int n) {
   double result = 0;
   for (int i = 0; i < n; i++) {
     double sum = 0;
-    for (int j = 0; j <= i; i++) {
+    for (int j = 0; j <= i; j++) {
       sum += x[j];
     }
     result += SQUARE(sum);

@@ -69,19 +69,31 @@ double max_food_improvement(fish_t* fishes, int n) {
 /*** FISH API & FSS MOVEMENT **************************************************/
 /******************************************************************************/
 
-void init_setup(struct setup_info_t* setup, const struct func_t* const f) {
+void init_setup(struct setup_info_t* setup, const struct func_t* const f, 
+  double ind_init_perc, double ind_final_perc,
+  double vol_init_perc, double vol_final_perc) {
+    
+  // Use the passed parameters if non-negative, else default to macros
+  setup->step_ind_perc = (ind_init_perc < 0) ? IND_INIT_PERCENTAGE : ind_init_perc;
+  setup->step_vol_perc = (vol_init_perc < 0) ? VOL_INIT_PERCENTAGE : vol_init_perc;
+
+  // For the decreasing patterns, you might compute the decays proportionally.
+  // Here as an example, we compute decays based on the number of cycles.
+  setup->step_ind_perc_dec = (ind_final_perc < 0 || ind_init_perc < 0) 
+                ? (IND_FINAL_PERCENTAGE / IND_INIT_PERCENTAGE) / CYCLES_LIMIT
+                : (ind_final_perc / ind_init_perc) / CYCLES_LIMIT;
+  setup->step_vol_perc_dec = (vol_final_perc < 0 || vol_init_perc < 0) 
+                ? (VOL_FINAL_PERCENTAGE / VOL_INIT_PERCENTAGE) / CYCLES_LIMIT
+                : (vol_final_perc / vol_init_perc) / CYCLES_LIMIT;
+
+  // Other initializations
+  setup->func = *f;
+  // Compute search_space_width from the test function's domain (for instance):
   setup->search_space_width = f->params.search_space_max - f->params.search_space_min;
-  setup->step_ind_perc = IND_INIT_PERCENTAGE;
-  setup->step_vol_perc = VOL_INIT_PERCENTAGE;
-  // NOTE: If here `CYCLES_LIMIT` is replaced with the actual number of algorithm
-  // iterations we do, positions change in a much smother way. If the the number
-  // of iterations exceedes the cycles count used here, fishes begin to separate
-  // on exceeding iterations. Don't know way.
-  setup->step_ind_perc_dec = (IND_INIT_PERCENTAGE - IND_FINAL_PERCENTAGE) / CYCLES_LIMIT;
-  setup->step_vol_perc_dec = (VOL_INIT_PERCENTAGE - VOL_FINAL_PERCENTAGE) / CYCLES_LIMIT;
+
+  // Optionally, set the actual steps (this example simply uses the percentage times the search space)
   setup->step_ind = setup->search_space_width * setup->step_ind_perc;
   setup->step_vol = setup->search_space_width * setup->step_vol_perc;
-  setup->func = *f;
 }
 
 void init(fish_t* const fish, const struct setup_info_t* const setup) {
