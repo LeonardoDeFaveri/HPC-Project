@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>
+#include <mpi.h>
 
 /******************************************************************************/
 /*** UTILITY FUNCTIONS ********************************************************/
@@ -209,6 +210,66 @@ void decrease_step(struct setup_info_t* setup) {
   setup->step_ind = setup->search_space_width * setup->step_ind_perc;
   setup->step_vol_perc -= setup->step_vol_perc_dec;
   setup->step_vol = setup->search_space_width * setup->step_vol_perc;
+}
+
+void breeding(
+  fish_t* const local_fishes, int local_count, const fish_t* const all_fishes,
+  int global_count, int rank
+) {
+  double worst_v = -DBL_MAX, best_v = DBL_MAX;
+    int worst, best;
+    for (int i = 0; i < local_count; i++) {
+      if (local_fishes[i].value < best_v) {
+        best_v = local_fishes[i].value;
+        best = i;
+      }
+      if (local_fishes[i].value > worst_v) {
+        worst_v = local_fishes[i].value;
+        worst = i;
+      }
+    }
+    struct pair_t pair_in = { .index = rank * local_count + worst, .value = worst_v };
+    struct pair_t worst_p, best_p;
+    MPI_Allreduce(&pair_in, &worst_p, 1, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
+    int worst_rank = worst_p.index / local_count;
+    
+    pair_in.index = rank * local_count + best;
+    pair_in.value = best_v;
+    MPI_Allreduce(&pair_in, &best_p, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+
+    // Determine the best breeding candidate
+    double mate_v = -DBL_MAX;
+    int mate;
+    for (int i = rank * local_count; i < rank * local_count + local_count; i++) {
+      if (i != worst_p.index && i != best_p.index) {
+        double distance = 0;
+        for (int j = 0; j < DIM_COUNT; j++) {
+          double diff = all_fishes[best_p.index].positions[j] - all_fishes[i].positions[j];
+          distance += diff * diff;
+        }
+        distance = sqrt(distance);
+        if (all_fishes[i].weight / distance > mate_v) {
+          mate_v = all_fishes[i].weight / distance;
+          mate = i;
+        }
+      }
+    }
+    pair_in.index = mate;
+    pair_in.value = mate_v;
+    struct pair_t mate_p;
+    MPI_Reduce(&pair_in, &mate_p, 1, MPI_DOUBLE_INT, MPI_MAXLOC, worst_rank, MPI_COMM_WORLD);
+    
+    if (rank == worst_rank) {
+      int i = worst_p.index % local_count;
+      const fish_t* const best = &all_fishes[best_p.index];
+      const fish_t* const mate = &all_fishes[mate_p.index];
+      fish_t* const worst = &local_fishes[i];
+      // This process owns the weakest fish
+      worst->weight = (best->weight + mate->weight) / 2;
+      for (int j = 0; j < DIM_COUNT; j++) {
+        worst->positions[j] = (best->positions[j] + mate->positions[j]) / 2;
+      }
+    }
 }
 
 /******************************************************************************/

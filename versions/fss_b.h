@@ -22,8 +22,8 @@
  * search space. These percentages are `0.1%` (`0.001`), `0.01` (`0.0001`) and
  * `0.001` (`0.00001`).
  */
-#define IND_FINAL_PERCENTAGE 0.001
-#define VOL_INIT_PERCENTAGE 0.01
+#define IND_FINAL_PERCENTAGE 0.0001
+#define VOL_INIT_PERCENTAGE 0.1
 #define VOL_FINAL_PERCENTAGE 0.0001
 
 struct fish_t {
@@ -92,6 +92,18 @@ struct setup_info_t {
 };
 
 /**
+ * This struct is necessary in the breeding phase to pack together for
+ * transfering the value of a fish and its global index.
+ */
+struct pair_t {
+  double value;
+  /**
+   * Global index
+   */
+  int index;
+};
+
+/**
  * Initializes an experiment setup using function `f`.
  */
 void init_setup(struct setup_info_t* setup, const struct func_t* const f);
@@ -115,6 +127,10 @@ void collective_volitive_move(
   struct setup_info_t* const setup
 );
 void decrease_step(struct setup_info_t* setup);
+void breeding(
+  fish_t* const local_fishes, int local_count, const fish_t* const all_fishes,
+  int global_count, int rank
+);
 /******************************************************************************/
 
 #endif

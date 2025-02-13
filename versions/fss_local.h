@@ -47,6 +47,10 @@ struct fish_t {
    * After a dispament, how much has the amount of food improved?
    */
   double food_improvement;
+  /**
+   * Value of the fitness function in this position.
+   */
+  double value;
 };
 typedef struct fish_t fish_t;
 
@@ -116,6 +120,7 @@ void collective_volitive_move(
   struct setup_info_t* const setup
 );
 void decrease_step(struct setup_info_t* setup);
+void breeding(fish_t* const local_fishes, int local_count);
 /******************************************************************************/
 
 #endif

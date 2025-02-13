@@ -79,18 +79,19 @@ void init(fish_t* const fish, const struct setup_info_t* const setup) {
   fish->weight_improvement = 0;
 }
 
+/******************************************************************************/
+/*** FISH API & FSS MOVEMENT **************************************************/
+/******************************************************************************/
+
 void individual_move(fish_t* const fish, struct setup_info_t* const setup) {
-  // Update food amount to current position (since it changed from collective
-  // movements)
-  double curr_val = compute_amount_of_food(setup->func.f(fish->positions, DIM_COUNT));
+  double curr_food = setup->func.f(fish->positions, DIM_COUNT);
+  double curr_val = compute_amount_of_food(curr_food);
 
   double next_pos[DIM_COUNT];
   compute_next_position(fish, &setup->func, setup->step_ind, next_pos);
 
-  // By making comparisons on the amount of food available in a position instead
-  // of on the value of the functions being considered, we are allowed to always
-  // look for the smallest possible value
-  double next_val = compute_amount_of_food(setup->func.f(next_pos, DIM_COUNT));
+  double next_food = setup->func.f(next_pos, DIM_COUNT);
+  double next_val = compute_amount_of_food(next_food);
 
   fish->food_improvement = next_val - curr_val;
   // Checks if the new position is better than the current one
@@ -100,11 +101,13 @@ void individual_move(fish_t* const fish, struct setup_info_t* const setup) {
       fish->displacements[i] = next_pos[i] - fish->positions[i];
       fish->positions[i] = next_pos[i];
     }
+    fish->value = next_food;
   } else {
     // The new position is worse, so the fish stays in the current position
     for (int i = 0; i < DIM_COUNT; i++) {
       fish->displacements[i] = 0;
-   }
+    }
+    fish->value = curr_food;
   }
 }
 
@@ -209,6 +212,48 @@ void decrease_step(struct setup_info_t* setup) {
   setup->step_ind = setup->search_space_width * setup->step_ind_perc;
   setup->step_vol_perc -= setup->step_vol_perc_dec;
   setup->step_vol = setup->search_space_width * setup->step_vol_perc;
+}
+
+void breeding(fish_t* const local_fishes, int local_count) {
+  double worst_v = -DBL_MAX, best_v = DBL_MAX;
+    int worst, best;
+    for (int i = 0; i < local_count; i++) {
+      if (local_fishes[i].value < best_v) {
+        best_v = local_fishes[i].value;
+        best = i;
+      }
+      if (local_fishes[i].value > worst_v) {
+        worst_v = local_fishes[i].value;
+        worst = i;
+      }
+    }
+
+    // Determine the best breeding candidate
+    double mate_v = -DBL_MAX;
+    int mate;
+    for (int i = 0; i < local_count; i++) {
+      if (i != worst && i != best) {
+        double distance = 0;
+        for (int j = 0; j < DIM_COUNT; j++) {
+          double diff = local_fishes[best].positions[j] - local_fishes[i].positions[j];
+          distance += diff * diff;
+        }
+        distance = sqrt(distance);
+        if (local_fishes[i].weight / distance > mate_v) {
+          mate_v = local_fishes[i].weight / distance;
+          mate = i;
+        }
+      }
+    }
+
+    const fish_t* const best_f = &local_fishes[best];
+    const fish_t* const mate_f = &local_fishes[mate];
+    fish_t* const worst_f = &local_fishes[worst];
+    // This process owns the weakest fish
+    worst_f->weight = (best_f->weight + mate_f->weight) / 2;
+    for (int j = 0; j < DIM_COUNT; j++) {
+      worst_f->positions[j] = (best_f->positions[j] + mate_f->positions[j]) / 2;
+    }
 }
 
 /******************************************************************************/

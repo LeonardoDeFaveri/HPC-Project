@@ -31,7 +31,7 @@ double griewank(double *x, int n) {
   double prod = 1;
   for (int i = 0; i < n; i++)
   {
-    prod *= cos(x[i] / sqrt(i));
+    prod *= cos(x[i] / sqrt(i + 1));
   }
   result -= prod;
   return result;
@@ -51,7 +51,7 @@ double schwefel(double *x, int n) {
   double result = 0;
   for (int i = 0; i < n; i++) {
     double sum = 0;
-    for (int j = 0; j <= i; i++) {
+    for (int j = 0; j <= i; j++) {
       sum += x[j];
     }
     result += SQUARE(sum);

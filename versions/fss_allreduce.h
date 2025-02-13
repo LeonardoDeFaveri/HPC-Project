@@ -47,6 +47,10 @@ struct fish_t {
    * After a dispament, how much has the amount of food improved?
    */
   double food_improvement;
+  /**
+   * Value of the fitness function in this position.
+   */
+  double value;
 };
 typedef struct fish_t fish_t;
 
@@ -88,6 +92,18 @@ struct setup_info_t {
 };
 
 /**
+ * This struct is necessary in the breeding phase to pack together for
+ * transfering the value of a fish and its global index.
+ */
+struct pair_t {
+  double value;
+  /**
+   * Global index
+   */
+  int index;
+};
+
+/**
  * Initializes an experiment setup using function `f`.
  */
 void init_setup(struct setup_info_t* setup, const struct func_t* const f);
@@ -104,6 +120,10 @@ void feeding_operator(fish_t* const local_fishes, int local_count);
 void collective_instinctive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void decrease_step(struct setup_info_t* setup);
+void breeding(
+  fish_t* const local_fishes, int local_count, const fish_t* const all_fishes,
+  int global_count, int rank
+);
 /******************************************************************************/
 
 #endif
