@@ -3,7 +3,7 @@
  * value need other fishes informations to be computed, these are exchanged and
  * then each fish computes the value.
  */
-
+#include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,10 +33,6 @@
 #define REP_COUNT 1
 
 void run(int world_size, int rank, int total_fishes, struct setup_info_t* setup, MPI_Datatype* mpi_volitive_t);
-/**
- * Returns the maximum value in a vector `values` of length `n`.
- */
-double max(fish_t* values, int n);
 MPI_Datatype register_volitive_t();
 
 int main(int argc, char **argv) {
@@ -152,7 +148,6 @@ void run(
   /****************************************************************************/
 
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
-
     individual_move(local_fishes, total_local_fishes, setup);
     feeding_operator(local_fishes, total_local_fishes);
     collective_instinctive_move(local_fishes, total_local_fishes, setup);
@@ -166,38 +161,32 @@ void run(
     #ifdef DEBUG
     MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
     if (rank == 0) {
+      double mean=0.0, std_deviation=0.0;
+      double* fitness = malloc(sizeof(double) * total_fishes);
+      int proc = -1;
       for (int i = 0; i < total_fishes; i++) {
+        if (i % tot == 0) {
+          proc++;
+        }
         fprintf(
-          file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i,
+          file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i,
           all_fishes[i].positions[0], all_fishes[i].positions[1], all_fishes[i].weight
         );
+        fitness[i] = setup->func.f(all_fishes[i].positions, DIM_COUNT);
+        mean += fitness[i];
       }
+      mean /= total_fishes;
+      for (int i = 0; i < total_fishes; i++) {
+        std_deviation += (fitness[i] - mean) * (fitness[i] - mean);
+      }
+      std_deviation /= total_fishes;
+      std_deviation = sqrt(std_deviation);
+      printf("CYCLE %d: mean =  %f\t std deviation = %f\n", cycle, mean, std_deviation);
+      free(fitness);
     }
     #endif
     /**************************************************************************/
   }
-
-   if(rank == 0) {
-    double tmp_pos[DIM_COUNT] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    double tmp_pos2[DIM_COUNT] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-    double tmp_pos3[DIM_COUNT] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
-    // double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
-    // double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
-    double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
-    double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
-    double tmp_fitness3 = setup->func.f(tmp_pos3, DIM_COUNT);
-    // for(int i=0; i<DIM_COUNT; i++) {
-    //   printf("%f ", tmp_pos2[i]);
-    // }
-    printf("\nFITNESS: %f, FITNESS2: %f, FITNESS3: %f\n", tmp_fitness, tmp_fitness2, tmp_fitness3);
-  }
-
-  double mean=0.0, variance=0.0;
-  compute_final_fitness(local_fishes, total_local_fishes, total_fishes, setup, &mean, &variance);
-  if(rank == 0) {
-    printf("FITNESS mean: %f, deviation: %f\n", mean, variance);
-  }
-  
 
   if (rank == 0) {
     fclose(file);
