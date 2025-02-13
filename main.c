@@ -38,7 +38,7 @@
  * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 5
+#define REP_COUNT 1
 /**
  * Defines how frequently different processes should talk each other. A value
  * of `1` means that communication happens at each cycle.
@@ -80,9 +80,12 @@ int main(int argc, char **argv) {
   MPI_Datatype mpi_dimensions_t = register_dimensions_t();
   MPI_Datatype mpi_volitive_t = register_volitive_t();
 
+  // Expected usage:
+    // ./main_allreduce <test_function> <max_fishes_count> <results_file>
+    // Optionally: <ind_init> <ind_final> <vol_init> <vol_final>
   if (argc < 4) {
     if (rank == 0) {
-      fprintf(stderr, "You should provide a function name as an integer in (0, 4), the maximum number of fishes and a path to the output file\n");
+      fprintf(stderr, "Usage: %s <test_function> <max_fishes_count> <results_file> [ind_init ind_final vol_init vol_final]\n", argv[0]);
     }
   } else {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
@@ -100,13 +103,28 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
+    // Defaults: use -1 to indicate fallback to macros
+    double ind_init  = -1;
+    double ind_final = -1;
+    double vol_init  = -1;
+    double vol_final = -1;
+    
+    if(argc >= 8) {
+        ind_init  = atof(argv[4]);
+        ind_final = atof(argv[5]);
+        vol_init  = atof(argv[6]);
+        vol_final = atof(argv[7]);
+        if(rank == 0)
+          printf("func: %d, ind: %f - %f, vol: %f - %f,", atoi(argv[1]), ind_init, ind_final, vol_init, vol_final);
+    }
+
     for (int fishes_count = 32; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for (int j = 0; j < REP_COUNT; j++) {
         // Waits for every process to arrive here before proceeding
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
-        init_setup(&setup, &function);
+        init_setup(&setup, &function, ind_init, ind_final, vol_init, vol_final);
         run(world_size, rank, fishes_count, baricenter, &setup, &mpi_dimensions_t, &mpi_volitive_t);
         elapsed_time += MPI_Wtime() - start_time;
       }
@@ -180,12 +198,14 @@ void run(
     fprintf(file, "cycle,rank,fish_id,position_x,position_y,weight\n");
   }
 
+  // Moved it here to be used for min fitness search
+  int total_size = world_size * tot;
+  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
+
   /****************************************************************************/
   /***** JUST FOR PLOTTING NECESSITIES, REMOVE FOR PERFORMANCE EVALUATION *****/
   /****************************************************************************/
   #ifdef DEBUG
-  int total_size = world_size * tot;
-  fish_t* all_fishes = malloc(sizeof(fish_t) * total_size);
   for (int i = 0; i < tot; i++) {
     all_fishes[rank * tot + i] = local_fishes[i];
   }
@@ -316,6 +336,21 @@ void run(
     }
     #endif
     /**************************************************************************/
+  }
+
+  MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
+  // Print min fitness value
+  if(rank == 0) {
+
+    double min_fitness = DBL_MAX;
+    for (int i = 0; i < total_fishes; i++) {
+      double tmp_fit = setup->func.f(all_fishes[i].positions, DIM_COUNT);
+      if(tmp_fit < min_fitness)
+        min_fitness = tmp_fit;
+    }
+
+    
+    printf("  minimum fitness: %f\n", min_fitness);
   }
 
   if (rank == 0) {
