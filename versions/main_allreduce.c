@@ -177,27 +177,19 @@ void run(
     /**************************************************************************/
   }
 
-   if(rank == 0) {
-    double tmp_pos[DIM_COUNT] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-    double tmp_pos2[DIM_COUNT] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-    double tmp_pos3[DIM_COUNT] = {2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2};
-    // double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
-    // double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
-    double tmp_fitness = setup->func.f(tmp_pos, DIM_COUNT);
-    double tmp_fitness2 = setup->func.f(tmp_pos2, DIM_COUNT);
-    double tmp_fitness3 = setup->func.f(tmp_pos3, DIM_COUNT);
-    // for(int i=0; i<DIM_COUNT; i++) {
-    //   printf("%f ", tmp_pos2[i]);
-    // }
-    printf("\nFITNESS: %f, FITNESS2: %f, FITNESS3: %f\n", tmp_fitness, tmp_fitness2, tmp_fitness3);
+  // double mean=0.0, variance=0.0;
+  // compute_final_fitness(local_fishes, total_local_fishes, total_fishes, setup, &mean, &variance);
+  // if(rank == 0) {
+  //   printf("FITNESS mean: %f, deviation: %f\n", mean, variance);
+  // }
+  
+  double min_fitness = 0.0;
+  compute_min_fitness(local_fishes, total_local_fishes, &min_fitness, setup);
+  if(rank == 0) {
+    printf("Minimum fitness: %f\n", min_fitness);
   }
 
-  double mean=0.0, variance=0.0;
-  compute_final_fitness(local_fishes, total_local_fishes, total_fishes, setup, &mean, &variance);
-  if(rank == 0) {
-    printf("FITNESS mean: %f, deviation: %f\n", mean, variance);
-  }
-  
+
 
   if (rank == 0) {
     fclose(file);

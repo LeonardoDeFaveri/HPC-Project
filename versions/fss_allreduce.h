@@ -109,6 +109,8 @@ void decrease_step(struct setup_info_t* setup);
 /**
  * Computes the mean anvd variance of the fitness function among all fishes.
  */
-void compute_final_fitness(fish_t* const fishes, int local_count, int total_count, struct setup_info_t* const setup, double *mean, double *variance);
+void compute_final_fitness(fish_t* const local_fishes, int local_count, int total_count, struct setup_info_t* const setup, double *mean, double *std_deviation);
+void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup);
+
 
 #endif

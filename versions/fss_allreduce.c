@@ -94,7 +94,6 @@ void init(fish_t* const fish, const struct setup_info_t* const setup) {
 }
 
 void individual_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup) {
-
   for (int j = 0; j < local_count; j++) {
 
     // Update food amount to current position (since it changed from collective movements)
@@ -263,18 +262,34 @@ void decrease_step(struct setup_info_t* setup) {
   setup->step_vol = setup->search_space_width * setup->step_vol_perc;
 }
 
-void compute_final_fitness(fish_t* const local_fishes, int local_count, int total_count, struct setup_info_t* const setup, double *mean, double *variance) {
+void compute_final_fitness(fish_t* const local_fishes, int local_count, int total_count, struct setup_info_t* const setup, double *mean, double *std_deviation) {
   double local_sum = 0.0, local_sum_sq = 0.0;
   for (int i = 0; i < local_count; i++) {
       double tmp_fitness = setup->func.f(local_fishes[i].positions, DIM_COUNT);
       local_sum += tmp_fitness;
-      local_sum_sq += tmp_fitness * tmp_fitness;
   }
   double global_sum = 0.0, global_sum_sq = 0.0;
   MPI_Reduce(&local_sum, &global_sum, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  *mean = global_sum / total_count;
+
+  for (int i = 0; i < local_count; i++) {
+    double tmp_fitness = setup->func.f(local_fishes[i].positions, DIM_COUNT);
+    local_sum_sq += (tmp_fitness - *mean) * (tmp_fitness - *mean);
+  }
   MPI_Reduce(&local_sum_sq, &global_sum_sq, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  *mean = global_sum / total_count;
-  double var = (global_sum_sq / total_count) - ((*mean) * (*mean));
-  *variance = sqrt(var); //actually std deviation, can't bother to change name now
+  double var = (global_sum_sq / total_count);
+  *std_deviation = sqrt(var);
+}
+
+void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup) {
+  double local_min = DBL_MAX;
+  // Compute local minimum fitness
+  for (int i = 0; i < local_count; i++) {
+      double fitness = setup->func.f(local_fishes[i].positions, DIM_COUNT);
+      if(fitness < local_min)
+          local_min = fitness;
+  }
+  // Reduce to find global minimum among all processes
+  MPI_Reduce(&local_min, min_fitness, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
 }
