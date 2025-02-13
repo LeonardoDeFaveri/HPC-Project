@@ -1,7 +1,7 @@
-#ifndef FSS_H
-#define FSS_H
+#ifndef FSS_LOCAL_H
+#define FSS_LOCAL_H
 
-#include "test_functions.h"
+#include "../test_functions.h"
 
 #define CYCLES_LIMIT 10000
 #define W_SCALE 5000.0

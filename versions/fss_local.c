@@ -1,4 +1,4 @@
-#include "fss.h"
+#include "fss_local.h"
 #include <stdlib.h>
 #include <float.h>
 #include <math.h>

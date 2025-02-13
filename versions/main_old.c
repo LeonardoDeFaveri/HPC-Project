@@ -1,7 +1,15 @@
 /**
- * This version of the program puts most of the heavy workload on fishes. If a
- * value need other fishes informations to be computed, these are exchanged and
- * then each fish computes the value.
+ * This version of the program models fishes so that each of them has every
+ * information required for both fish advancement and experimen setup (e.g.
+ * test function, step_ind and step_vol). This version uses one call to
+ * `MPI_Allgather` before each operation with which all the information that
+ * are necessary for any operation are shared among all fishes. This is
+ * inherently ineficient because data not required to compute a movement step
+ * or feeding are shared nonetheless.
+ * 
+ * TESTING:
+ * To test this version compiler the program with:
+ * `make old`
  */
 #include <mpi.h>
 #include <stdio.h>
@@ -24,7 +32,7 @@
 #endif
 
 /**
- * Define how many times the algorithms is executed for a single configuration
+ * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
 #define REP_COUNT 5
@@ -33,7 +41,7 @@ void run(
   int world_size, int rank, int total_fishes, struct func_t function,
   MPI_Datatype *mpi_fish_info
 );
-MPI_Datatype register_dimensions_t();
+MPI_Datatype register_fish_info_t();
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -48,7 +56,7 @@ int main(int argc, char **argv) {
   } else {
     const struct func_t function = get_function((enum func_name) atoi(argv[1]));
     int max_fishes_count = atoi(argv[2]);
-    MPI_Datatype mpi_fish_info = register_dimensions_t();
+    MPI_Datatype mpi_fish_info = register_fish_info_t();
 
     FILE *output;
     if (rank == 0) {
@@ -238,7 +246,7 @@ void run(
   free(local_fishes);
 }
 
-MPI_Datatype register_dimensions_t() {
+MPI_Datatype register_fish_info_t() {
   const int n_fields = 6;
   int block_lengths[] = {1, 1, 1, 1, DIM_COUNT, DIM_COUNT};
   MPI_Datatype field_types[] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
