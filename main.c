@@ -3,7 +3,7 @@
  * value need other fishes informations to be computed, these are exchanged and
  * then each fish computes the value.
  */
-
+#include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 32; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for (int j = 0; j < REP_COUNT; j++) {
         // Waits for every process to arrive here before proceeding
@@ -178,11 +178,6 @@ void run(
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i], setup);
-      PRINT_POS0(
-        "After individual move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -194,11 +189,6 @@ void run(
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` of every fish
       feeding_operator(&local_fishes[i], max_f);
-      PRINT_POS0(
-        "After feeding operator", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -206,27 +196,16 @@ void run(
       for (int j = 0; j < DIM_COUNT; j++) {
         displacements[index][j] = local_fishes[i].displacements[j];
       }
-    }
-    
+    }    
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *displacements, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       // This requires `food_improvement` and `displacement` of every fish
       collective_instinctive_move(&local_fishes[i], displacements, food_improvements, total_fishes, setup);
-      PRINT_POS(
-        "After collective instinctive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       collective_volitive_move(&local_fishes[i], all_fishes, total_fishes, setup);
-      PRINT_POS0(
-        "After collective volitive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     decrease_step(setup);
@@ -237,6 +216,8 @@ void run(
     #ifdef DEBUG
     MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
     if (rank == 0) {
+      double mean=0.0, std_deviation=0.0;
+      double* fitness = malloc(sizeof(double) * total_fishes);
       int proc = -1;
       for (int i = 0; i < total_fishes; i++) {
         if (i % tot == 0) {
@@ -246,7 +227,17 @@ void run(
           file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i,
           all_fishes[i].positions[0], all_fishes[i].positions[1], all_fishes[i].weight
         );
+        fitness[i] = setup->func.f(all_fishes[i].positions, DIM_COUNT);
+        mean += fitness[i];
       }
+      mean /= total_fishes;
+      for (int i = 0; i < total_fishes; i++) {
+        std_deviation += (fitness[i] - mean) * (fitness[i] - mean);
+      }
+      std_deviation /= total_fishes;
+      std_deviation = sqrt(std_deviation);
+      printf("CYCLE %d: mean =  %f\t std deviation = %f\n", cycle, mean, std_deviation);
+      free(fitness);
     }
     #endif
     /**************************************************************************/

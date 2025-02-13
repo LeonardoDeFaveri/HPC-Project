@@ -22,4 +22,4 @@ echo "WORLD_SIZE,FISHES_COUNT,ELAPSED_TIME" > $output
 # mpirun.actual -n 8 ./HPC-Project/main $test_function $max_fishes_count $output
 # mpirun.actual -n 16 ./HPC-Project/main $test_function $max_fishes_count $output
 mpirun.actual -n 32 ./HPC-Project/main $test_function $max_fishes_count $output
-# mpirun.actual -n 64 ./HPC-Project/main $test_function $max_fishes_count $output
+#mpirun.actual -n 64 ./HPC-Project/main $test_function $max_fishes_count $output
