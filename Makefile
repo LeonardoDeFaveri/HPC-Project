@@ -16,6 +16,9 @@ old: versions/main_old.c test_functions.h test_functions.c versions/fss_old.h ve
 1_ag: versions/main_b.c test_functions.h test_functions.c versions/fss_b.h versions/fss_b.c
 	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_b.c ./test_functions.c versions/fss_b.c -o main
 
+local: versions/main_local.c test_functions.h test_functions.c versions/fss_local.h versions/fss_local.c
+	@module load mpich-3.2 && mpicc -Wall -std=c11 -lm -ldl $(DEBUG) versions/main_local.c ./test_functions.c versions/fss_local.c -o main
+
 .PHONY: clean
 clean:
 	@rm launch.sh.*
