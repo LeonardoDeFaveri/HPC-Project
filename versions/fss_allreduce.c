@@ -177,6 +177,9 @@ void collective_instinctive_move(fish_t* const local_fishes, int local_count, st
 
 void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup) 
 {
+
+  //static double last_global_total_weight = 0.0;
+
   // Pack local contributions:
   // - first DIM_COUNT slots for local weighted displacements,
   // - one slot for local weigth sum,
@@ -203,11 +206,24 @@ void collective_volitive_move(fish_t* const local_fishes, int local_count, struc
     global_baricenter[j] = global_data[j] / global_total_weight;
   }
   
-  // Determine the movement direction
+  // // Determine the movement direction
   int inc = -1;
   if (global_total_weight_improvement < 0) {
     inc = +1;
   }
+
+  // Compare current total weight with last call's value.
+  // if (last_global_total_weight != 0.0) {
+  //   if (global_total_weight > last_global_total_weight) {
+  //     // Handle case where the current weight is greater.
+  //   } else if (global_total_weight < last_global_total_weight) {
+  //     inc = 1;
+  //   } else {
+  //     // Handle the case when they are equal.
+  //   }
+  // }
+  // // Update the static variable for the next call.
+  // last_global_total_weight = global_total_weight;
 
   // Update each fish's position based on the computed baricenter
   for (int i = 0; i < local_count; i++) {
