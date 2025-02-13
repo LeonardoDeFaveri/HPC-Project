@@ -11,6 +11,7 @@
  * To test this version compiler the program with:
  * `make old`
  */
+
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,26 +164,14 @@ void run(
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i]);
-      PRINT_POS0(
-        "After individual move", cycle, rank, i,
-        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
-        local_fishes[i].info.weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
       fishes[rank * tot + i] = local_fishes[i].info;
     }
-
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
-      // This requires `food_improvement` of every fish
       feeding_operator(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0(
-        "After feeding operator", cycle, rank, i,
-        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
-        local_fishes[i].info.weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -190,13 +179,7 @@ void run(
     }
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
-      // This requires `food_improvement` and `displacement` of every fish
       collective_instinctive_move(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0(
-        "After collective instinctive move", cycle, rank, i,
-        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
-        local_fishes[i].info.weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -205,12 +188,6 @@ void run(
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, fishes, tot, *mpi_fish_info, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
       collective_volitive_move(&local_fishes[i], fishes, total_fishes);
-      PRINT_POS0(
-        "After collective volitive move", cycle, rank, i,
-        local_fishes[i].info.positions[0], local_fishes[i].info.positions[1],
-        local_fishes[i].info.weight
-      );
-
       decrease_step(&local_fishes[i]);
     }
 

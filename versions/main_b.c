@@ -12,6 +12,7 @@
  * To test this version compiler the program with:
  * `make 1_ag`
  */
+
 #include <math.h>
 #include <float.h>
 #include <mpi.h>
@@ -193,11 +194,6 @@ void run(
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
     for (int i = 0; i < total_local_fishes; i++) {
       individual_move(&local_fishes[i], setup);
-      PRINT_POS0(
-        "After individual move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -205,15 +201,8 @@ void run(
     }
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, food_improvements, tot, MPI_DOUBLE, MPI_COMM_WORLD);    
     double max_f = max(food_improvements, total_fishes);
-
     for (int i = 0; i < total_local_fishes; i++) {
-      // This requires `food_improvement` of every fish
       feeding_operator(&local_fishes[i], max_f);
-      PRINT_POS0(
-        "After feeding operator", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     for (int i = 0; i < tot; i++) {
@@ -222,16 +211,9 @@ void run(
         displacements[index][j] = local_fishes[i].displacements[j];
       }
     }
-    
     MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, *displacements, tot, *mpi_dimensions_t, MPI_COMM_WORLD);
     for (int i = 0; i < total_local_fishes; i++) {
-      // This requires `food_improvement` and `displacement` of every fish
       collective_instinctive_move(&local_fishes[i], displacements, food_improvements, total_fishes, setup);
-      PRINT_POS(
-        "After collective instinctive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
@@ -242,11 +224,6 @@ void run(
     }
     for (int i = 0; i < total_local_fishes; i++) {
       collective_volitive_move(&local_fishes[i], baricenter, total_weight_improvement, setup);
-      PRINT_POS0(
-        "After collective volitive move", cycle, rank, i,
-        local_fishes[i].positions[0], local_fishes[i].positions[1],
-        local_fishes[i].weight
-      );
     }
 
     decrease_step(setup);

@@ -1,7 +1,15 @@
 /**
- * This version of the program puts most of the heavy workload on fishes. If a
- * value need other fishes informations to be computed, these are exchanged and
- * then each fish computes the value.
+ * This version of the program models fishes so that each fish only carries the
+ * information it requires to evolve (e.g. weight, position, displacement). Data
+ * associated to experiment (e.g. test function, step_ind, step_vol) are put in
+ * a different structure that is replicated among all processes instead of all
+ * fishes. This version uses call to `MPI_Allreduce` to transfer only those data
+ * that are stricly necessary to perform a movement step or feeding and to
+ * simoultaneously compute some of the values required for movement.
+ * 
+ * TESTING:
+ * To test this version compiler the program with:
+ * `make allreduce`
  */
 
 #include <mpi.h>
