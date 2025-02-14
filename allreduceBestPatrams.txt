@@ -1,0 +1,137 @@
+BEST:
+- F0
+    func: 0, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 23.026865
+    func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 24.185974
+    func: 0, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 24.714865
+- F1
+    func: 1, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 94.887077
+    func: 1, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 89.021554
+    func: 1, ind: 0.010000 - 0.000100, vol: 0.100000 - 0.010000,  minimum fitness: 25.981658
+- F2
+    func: 2, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 0.068169
+    func: 2, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 0.134811
+    func: 2, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 0.000698
+- F3
+    func: 3, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 2.279312
+    func: 3, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 1.557730
+    func: 3, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 0.375759
+- F4
+    func: 4, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 15.360400
+    func: 4, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000010,  minimum fitness: 4.160701
+    func: 4, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 39.615112
+
+
+FUNC 0:
+
+8324
+func: 0, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000010,  minimum fitness: 36.857064
+func: 0, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 38.714364
+func: 0, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 23.026865
+func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 24.185974
+func: 0, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 24.714865
+
+8381
+func: 0, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 71.409677
+func: 0, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 55.634074
+func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 31.338013
+func: 0, ind: 0.001000 - 0.000001, vol: 0.010000 - 0.000100,  minimum fitness: 16.300727
+func: 0, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 16.859294
+
+9792
+func: 0, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 48.652803
+func: 0, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 23.191976
+func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000010,  minimum fitness: 42.576281
+func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 23.343354
+func: 0, ind: 0.001000 - 0.000001, vol: 0.010000 - 0.000100,  minimum fitness: 1.223019
+func: 0, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 28.061942
+
+9793
+func: 0, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 38.916358
+func: 0, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 21.721932
+func: 0, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 24.056636
+func: 0, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 22.741331
+
+
+FUNC 1:
+
+8329
+func: 1, ind: 0.100000 - 0.010000, vol: 0.100000 - 0.000010,  minimum fitness: 85.779102
+func: 1, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 94.887077
+func: 1, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 89.021554
+func: 1, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 42.205492
+
+9800
+func: 1, ind: 0.100000 - 0.010000, vol: 0.100000 - 0.001000,  minimum fitness: 119.632498
+func: 1, ind: 0.100000 - 0.010000, vol: 0.100000 - 0.000001,  minimum fitness: 82.901745
+func: 1, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000010,  minimum fitness: 34.589026
+func: 1, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 80.481933
+
+9801
+func: 1, ind: 0.100000 - 0.010000, vol: 0.100000 - 0.010000,  minimum fitness: 76.282502
+func: 1, ind: 0.100000 - 0.010000, vol: 0.100000 - 0.000100,  minimum fitness: 96.204029
+func: 1, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 95.270415
+func: 1, ind: 0.010000 - 0.000100, vol: 0.100000 - 0.010000,  minimum fitness: 25.981658
+
+
+FUNC 2:
+
+8330
+func: 2, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 0.810530
+func: 2, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 0.587377
+func: 2, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 0.039286
+func: 2, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 0.027468
+func: 2, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 0.001679
+
+9802
+func: 2, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 0.864980
+func: 2, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 0.600964
+func: 2, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 0.077335
+func: 2, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 0.062137
+func: 2, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 0.000698
+
+9803
+func: 2, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 0.805466
+func: 2, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000010,  minimum fitness: 0.964952
+func: 2, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 0.684303
+func: 2, ind: 0.010000 - 0.000100, vol: 0.010000 - 0.000100,  minimum fitness: 0.068169
+func: 2, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 0.134811
+func: 2, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000001,  minimum fitness: 0.001651
+
+FUNC 3:
+
+9377
+func: 3, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 2.279312
+func: 3, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 1.557730
+func: 3, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 0.375759
+
+
+9476
+func: 3, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 2.386961
+func: 3, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000010,  minimum fitness: 0.959262
+func: 3, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 1.642395
+func: 3, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 0.462762
+
+9837
+func: 3, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000100,  minimum fitness: 1.563816
+func: 3, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000001,  minimum fitness: 1.520691
+func: 3, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 1.022268
+func: 3, ind: 0.010000 - 0.000010, vol: 0.000010 - 0.000001,  minimum fitness: 3.345074
+func: 3, ind: 0.010000 - 0.000001, vol: 0.000100 - 0.000001,  minimum fitness: 3.437046
+
+
+FUNC 4:
+
+9838
+func: 4, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000010,  minimum fitness: 71.559282
+func: 4, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 42.318470
+
+0242
+func: 4, ind: 0.100000 - 0.010000, vol: 0.000100 - 0.000001,  minimum fitness: 9.158031
+func: 4, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 29.727242
+
+0243
+func: 4, ind: 0.100000 - 0.010000, vol: 0.010000 - 0.000001,  minimum fitness: 69.486451
+func: 4, ind: 0.100000 - 0.010000, vol: 0.001000 - 0.000010,  minimum fitness: 4.160701
+func: 4, ind: 0.010000 - 0.000100, vol: 0.001000 - 0.000001,  minimum fitness: 30.932219
+func: 4, ind: 0.001000 - 0.000001, vol: 0.001000 - 0.000010,  minimum fitness: 84.100504
+
