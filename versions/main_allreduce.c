@@ -12,6 +12,7 @@
  * `make allreduce`
  */
 
+#include <float.h>
 #include <math.h>
 #include <mpi.h>
 #include <stdio.h>
@@ -43,6 +44,7 @@ void run(int world_size, int rank, int total_fishes, struct setup_info_t* setup,
  */
 double max(fish_t* values, int n);
 MPI_Datatype register_volitive_t();
+void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup);
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -65,7 +67,7 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 32; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for(int j = 0; j < REP_COUNT; j++) {
         MPI_Barrier(MPI_COMM_WORLD);
@@ -201,6 +203,12 @@ void run(
     /**************************************************************************/
   }
 
+  double min_fitness = 0.0;
+  compute_min_fitness(local_fishes, total_local_fishes, &min_fitness, setup);
+  if(rank == 0) {
+    printf("  minimum fitness: %f\n", min_fitness);
+  }
+
   if (rank == 0) {
     fclose(file);
   }
@@ -233,4 +241,16 @@ MPI_Datatype register_volitive_t() {
   MPI_Type_create_resized(tmp_mpi_t, offset[0], (MPI_Aint) sizeof(fish_t), &mpi_volitive_t);
   MPI_Type_commit(&mpi_volitive_t);
   return mpi_volitive_t;
+}
+
+void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup) {
+  double local_min = DBL_MAX;
+  // Compute local minimum fitness
+  for (int i = 0; i < local_count; i++) {
+      double fitness = setup->func.f(local_fishes[i].positions, DIM_COUNT);
+      if(fitness < local_min)
+          local_min = fitness;
+  }
+  // Reduce to find global minimum among all processes
+  MPI_Reduce(&local_min, min_fitness, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
 }

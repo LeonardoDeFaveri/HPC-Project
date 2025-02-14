@@ -44,6 +44,13 @@ double ackley(double *x, int n) {
     sum += cos(2 * PI * x[i]);
   }
   result -= exp(sum / n);
+  sum = 0;
+  for (int i = 0; i < n; i++) {
+    sum += SQUARE(x[i]);
+  }
+  sum /= n;
+  sum = sqrt(sum) * -0.2;
+  result -= 20 * exp(sum);
   return result;
 }
 
