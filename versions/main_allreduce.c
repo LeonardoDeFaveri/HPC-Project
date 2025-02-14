@@ -12,6 +12,7 @@
  * `make allreduce`
  */
 
+#include <math.h>
 #include <mpi.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,7 +20,6 @@
 #include <time.h>
 #include "fss_allreduce.h"
 #include "../test_functions.h"
-#include <float.h>
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
@@ -65,10 +65,9 @@ int main(int argc, char **argv) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 1; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
       for(int j = 0; j < REP_COUNT; j++) {
-      // Waits for every process to arrive here before proceeding
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
         init_setup(&setup, &function);
@@ -157,12 +156,15 @@ void run(
   /****************************************************************************/
 
   for (int cycle = 0; cycle < CYCLES_LIMIT; cycle++) {
-
     individual_move(local_fishes, total_local_fishes, setup);
     feeding_operator(local_fishes, total_local_fishes);
     collective_instinctive_move(local_fishes, total_local_fishes, setup);
     collective_volitive_move(local_fishes, total_local_fishes, setup);
-
+    
+    // Checks that there are enough fishes
+    if (total_fishes >= 3) {
+      breeding(local_fishes, tot, rank);
+    }
     decrease_step(setup);
 
     /**************************************************************************/
@@ -171,12 +173,29 @@ void run(
     #ifdef DEBUG
     MPI_Allgather(local_fishes, tot, *mpi_volitive_t, all_fishes, tot, *mpi_volitive_t, MPI_COMM_WORLD);
     if (rank == 0) {
+      double mean=0.0, std_deviation=0.0;
+      double* fitness = malloc(sizeof(double) * total_fishes);
+      int proc = -1;
       for (int i = 0; i < total_fishes; i++) {
+        if (i % tot == 0) {
+          proc++;
+        }
         fprintf(
-          file, "%d,%d,%d,%f,%f,%f\n", cycle, rank, i,
+          file, "%d,%d,%d,%f,%f,%f\n", cycle, proc, i,
           all_fishes[i].positions[0], all_fishes[i].positions[1], all_fishes[i].weight
         );
+        fitness[i] = setup->func.f(all_fishes[i].positions, DIM_COUNT);
+        mean += fitness[i];
       }
+      mean /= total_fishes;
+      for (int i = 0; i < total_fishes; i++) {
+        std_deviation += (fitness[i] - mean) * (fitness[i] - mean);
+      }
+      std_deviation /= total_fishes;
+      std_deviation = sqrt(std_deviation);
+      if (cycle == CYCLES_LIMIT - 1)
+        printf("CYCLE %d: mean =  %f\t std deviation = %f\n", cycle, mean, std_deviation);
+      free(fitness);
     }
     #endif
     /**************************************************************************/
