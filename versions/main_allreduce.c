@@ -20,7 +20,6 @@
 #include <time.h>
 #include "fss_allreduce.h"
 #include "../test_functions.h"
-#include <float.h>
 
 #ifdef DEBUG
   #define PRINT(f, ...) printf(f, __VA_ARGS__)
@@ -163,8 +162,8 @@ void run(
     collective_volitive_move(local_fishes, total_local_fishes, setup);
     
     // Checks that there are enough fishes
-    if (total_local_fishes >= 3) {
-      //breeding(local_fishes, tot, all_fishes, total_fishes, rank);
+    if (total_fishes >= 3) {
+      breeding(local_fishes, tot, rank);
     }
     decrease_step(setup);
 

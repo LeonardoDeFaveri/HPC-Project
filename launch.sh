@@ -5,7 +5,7 @@
 #PBS -q short_cpuQ
 module load mpich-3.2
 
-test_function=4
+test_function=1
 max_fishes_count=64
 output='HPC-Project/time_results.csv'
 

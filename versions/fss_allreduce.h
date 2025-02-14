@@ -120,10 +120,7 @@ void feeding_operator(fish_t* const local_fishes, int local_count);
 void collective_instinctive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void collective_volitive_move(fish_t* const local_fishes, int local_count, struct setup_info_t* const setup);
 void decrease_step(struct setup_info_t* setup);
-void breeding(
-  fish_t* const local_fishes, int local_count, const fish_t* const all_fishes,
-  int global_count, int rank
-);
+void breeding(fish_t* const local_fishes, int local_count, int rank);
 /******************************************************************************/
 
 #endif
