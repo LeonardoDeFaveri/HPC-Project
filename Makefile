@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 #-------------------------------------------------------------------------------
 # Comment this line before computing execution times
-DEBUG := "-DDEBUG"
+#DEBUG := "-DDEBUG"
 #-------------------------------------------------------------------------------
 
 main: main.c test_functions.h test_functions.c fss.h fss.c
@@ -24,4 +24,4 @@ allreduce: versions/main_allreduce.c test_functions.h test_functions.c versions/
 
 .PHONY: clean
 clean:
-	@rm launch.sh.*
+	@rm launch*.sh.*

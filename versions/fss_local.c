@@ -249,7 +249,6 @@ void breeding(fish_t* const local_fishes, int local_count) {
     const fish_t* const best_f = &local_fishes[best];
     const fish_t* const mate_f = &local_fishes[mate];
     fish_t* const worst_f = &local_fishes[worst];
-    // This process owns the weakest fish
     worst_f->weight = (best_f->weight + mate_f->weight) / 2;
     for (int j = 0; j < DIM_COUNT; j++) {
       worst_f->positions[j] = (best_f->positions[j] + mate_f->positions[j]) / 2;

@@ -36,15 +36,15 @@
  * Define how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 5
+#define REP_COUNT 30
 
-void run(int world_size, int rank, int total_fishes, struct setup_info_t* setup, MPI_Datatype* mpi_volitive_t);
+double run(int world_size, int rank, int total_fishes, struct setup_info_t* setup, MPI_Datatype* mpi_volitive_t);
 /**
  * Returns the maximum value in a vector `values` of length `n`.
  */
 double max(fish_t* values, int n);
 MPI_Datatype register_volitive_t();
-void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup);
+double compute_min_fitness(fish_t* const local_fishes, int local_count);
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -61,25 +61,37 @@ int main(int argc, char **argv) {
     struct setup_info_t setup;
     MPI_Datatype mpi_volitive_t = register_volitive_t();
     int max_fishes_count = atoi(argv[2]);
+    double fitnesses[REP_COUNT];
 
     FILE *output;
     if (rank == 0) {
       output = fopen(argv[3], "a");
     }
 
-    for (int fishes_count = 32; fishes_count <= max_fishes_count; fishes_count *= 2) {
+    for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
+      double mean = 0;
       for(int j = 0; j < REP_COUNT; j++) {
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
         init_setup(&setup, &function);
-        run(world_size, rank, fishes_count, &setup, &mpi_volitive_t);
+        double local_min = run(world_size, rank, fishes_count, &setup, &mpi_volitive_t);
         elapsed_time += MPI_Wtime() - start_time;
+
+        // Reduce to find global minimum among all processes
+        MPI_Reduce(&local_min, &fitnesses[j], 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+        mean += fitnesses[j];
       }
       // Takes the average of the results
       elapsed_time /= REP_COUNT;
+      mean /= REP_COUNT;
       if (rank == 0) {
-        fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
+        double sd = 0;
+        for (int i = 0; i < REP_COUNT; i++) {
+          sd += pow(mean - fitnesses[i], 2);
+        }
+        sd = sqrt(sd);
+        fprintf(output, "%d,%d,%f,%f,%f\n", world_size, fishes_count, elapsed_time, mean, sd);
       }
     }
 
@@ -92,7 +104,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void run(
+double run(
   int world_size, int rank, int total_fishes, struct setup_info_t* setup,
   MPI_Datatype* mpi_volitive_t
 ) {
@@ -203,18 +215,14 @@ void run(
     /**************************************************************************/
   }
 
-  double min_fitness = 0.0;
-  compute_min_fitness(local_fishes, total_local_fishes, &min_fitness, setup);
-  if(rank == 0) {
-    printf("  minimum fitness: %f\n", min_fitness);
-  }
-
+  double min_fitness = compute_min_fitness(local_fishes, total_local_fishes);
   if (rank == 0) {
     fclose(file);
   }
 
   free(local_fishes);
   free(all_fishes);
+  return min_fitness;
 }
 
 MPI_Datatype register_volitive_t() {
@@ -243,14 +251,13 @@ MPI_Datatype register_volitive_t() {
   return mpi_volitive_t;
 }
 
-void compute_min_fitness(fish_t* const local_fishes, int local_count, double *min_fitness, struct setup_info_t* const setup) {
+double compute_min_fitness(fish_t* const local_fishes, int local_count) {
   double local_min = DBL_MAX;
   // Compute local minimum fitness
   for (int i = 0; i < local_count; i++) {
-      double fitness = setup->func.f(local_fishes[i].positions, DIM_COUNT);
-      if(fitness < local_min)
-          local_min = fitness;
+    if (local_fishes[i].value < local_min) {
+      local_min = local_fishes[i].value;
+    }
   }
-  // Reduce to find global minimum among all processes
-  MPI_Reduce(&local_min, min_fitness, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  return local_min;
 }

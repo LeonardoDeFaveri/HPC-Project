@@ -38,14 +38,14 @@
  * Defines how many times the algorithms is executed for a single configuration
  * (world_size, fishes_count).
  */
-#define REP_COUNT 5
+#define REP_COUNT 30
 /**
  * Defines how frequently different processes should talk each other. A value
  * of `1` means that communication happens at each cycle.
  */
 #define COMM_FREQ 1
 
-void run(
+double run(
   int world_size, int rank, int total_fishes, double* baricenter,
   struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t,
   MPI_Datatype* mpi_volitive_t
@@ -70,7 +70,7 @@ MPI_Datatype register_volitive_t();
  */
 double **allocate_matrix (int rows, int cols);
 
-double distance_from_optimum(double* positions, double optimum);
+double compute_min_fitness(fish_t* const local_fishes, int local_count);
 
 int main(int argc, char **argv) {
   MPI_Init(&argc, &argv);
@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
      * total_weight_improvement
      */
     double* baricenter = malloc(sizeof(double) * (DIM_COUNT + 2));
+    double fitnesses[REP_COUNT];
 
     FILE *output;
     if (rank == 0) {
@@ -102,18 +103,29 @@ int main(int argc, char **argv) {
 
     for (int fishes_count = 64; fishes_count <= max_fishes_count; fishes_count *= 2) {
       double elapsed_time = 0;
+      double mean = 0;
       for (int j = 0; j < REP_COUNT; j++) {
         // Waits for every process to arrive here before proceeding
         MPI_Barrier(MPI_COMM_WORLD);
         double start_time = MPI_Wtime();
         init_setup(&setup, &function);
-        run(world_size, rank, fishes_count, baricenter, &setup, &mpi_dimensions_t, &mpi_volitive_t);
+        double local_min = run(world_size, rank, fishes_count, baricenter, &setup, &mpi_dimensions_t, &mpi_volitive_t);
         elapsed_time += MPI_Wtime() - start_time;
+
+        // Reduce to find global minimum among all processes
+        MPI_Reduce(&local_min, &fitnesses[j], 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+        mean += fitnesses[j];
       }
       // Takes the average of the results
       elapsed_time /= REP_COUNT;
+      mean /= REP_COUNT;
       if (rank == 0) {
-        fprintf(output, "%d,%d,%f\n", world_size, fishes_count, elapsed_time);
+        double sd = 0;
+        for (int i = 0; i < REP_COUNT; i++) {
+          sd += pow(mean - fitnesses[i], 2);
+        }
+        sd = sqrt(sd);
+        fprintf(output, "%d,%d,%f,%f,%f\n", world_size, fishes_count, elapsed_time, mean, sd);
       }
     }
 
@@ -129,7 +141,7 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void run(
+double run(
   int world_size, int rank, int total_fishes, double* baricenter,
   struct setup_info_t* setup, MPI_Datatype* mpi_dimensions_t,
   MPI_Datatype* mpi_volitive_t
@@ -301,6 +313,7 @@ void run(
     /**************************************************************************/
   }
 
+  double min_fitness = compute_min_fitness(local_fishes, total_local_fishes);
   if (rank == 0) {
     fclose(file);
   }
@@ -312,6 +325,7 @@ void run(
   #ifdef DEBUG
   free(all_fishes);
   #endif
+  return min_fitness;
 }
 
 double max(fish_t* values, int n) {
@@ -366,13 +380,13 @@ double **allocate_matrix(int rows, int cols) {
   return matrix;
 }
 
-double distance_from_optimum(double* positions, double optimum) {
-  double diff[DIM_COUNT];
-  double magnitude = 0;
-  for (int j = 0; j < DIM_COUNT; j++) {
-    diff[j] = positions[j] - optimum;
-    magnitude += diff[j] * diff[j];
+double compute_min_fitness(fish_t* const local_fishes, int local_count) {
+  double local_min = DBL_MAX;
+  // Compute local minimum fitness
+  for (int i = 0; i < local_count; i++) {
+    if (local_fishes[i].value < local_min) {
+      local_min = local_fishes[i].value;
+    }
   }
-  magnitude = sqrt(magnitude);
-  return magnitude;
+  return local_min;
 }
