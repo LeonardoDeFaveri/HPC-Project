@@ -16,15 +16,15 @@
  * as percentage of the actual search space. For initial values, percentages are
  * `10%` (`0.1`), `1%` (`0.01`) and `0.1%` (`0.001`).
  */
-#define IND_INIT_PERCENTAGE 0.001
+#define IND_INIT_PERCENTAGE 0.1
 /**
  * Final values of `step_ind` and `step_vol` are set as percentages of the actual
  * search space. These percentages are `0.1%` (`0.001`), `0.01` (`0.0001`) and
  * `0.001` (`0.00001`).
  */
-#define IND_FINAL_PERCENTAGE 0.000001
-#define VOL_INIT_PERCENTAGE 0.001
-#define VOL_FINAL_PERCENTAGE 0.000001
+#define IND_FINAL_PERCENTAGE 0.01
+#define VOL_INIT_PERCENTAGE 0.01
+#define VOL_FINAL_PERCENTAGE 0.00001
 
 struct fish_t {
   /**

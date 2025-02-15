@@ -5,9 +5,10 @@
 #PBS -q short_cpuQ
 module load mpich-3.2
 
-test_function=0
+test_function=1
 max_fishes_count=64
-output="HPC-Project/time_results_allreduce_breeding_F${test_function}.csv"
+output="HPC-Project/time_results/F${test_function}/allreduce_breeding.csv"
+#output="HPC-Project/time_results/F${test_function}/allreduce.csv"
 
 # Resets results file
 echo "WORLD_SIZE,FISHES_COUNT,ELAPSED_TIME,MEAN,SD" > $output

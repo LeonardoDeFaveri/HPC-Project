@@ -274,9 +274,9 @@ double run(
     }
 
     // Checks that there are enough fishes
-    if (total_local_fishes >= 3) {
-      breeding(local_fishes, tot);
-    }
+    //if (total_local_fishes >= 3) {
+    //  breeding(local_fishes, tot);
+    //}
     decrease_step(setup);
 
     /**************************************************************************/
@@ -384,6 +384,7 @@ double compute_min_fitness(fish_t* const local_fishes, int local_count) {
   double local_min = DBL_MAX;
   // Compute local minimum fitness
   for (int i = 0; i < local_count; i++) {
+    //local_fishes[i].value = setup->func.f(local_fishes[i].positions, DIM_COUNT);
     if (local_fishes[i].value < local_min) {
       local_min = local_fishes[i].value;
     }
