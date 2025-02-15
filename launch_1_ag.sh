@@ -7,7 +7,7 @@ module load mpich-3.2
 
 test_function=0
 max_fishes_count=64
-output="HPC-Project/time_results_1_ag_breeding_F{$test_function}.csv"
+output="HPC-Project/time_results_1_ag_breeding_F${test_function}.csv"
 
 # Resets results file
 echo "WORLD_SIZE,FISHES_COUNT,ELAPSED_TIME,MEAN,SD" > $output
