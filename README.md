@@ -11,3 +11,4 @@ Various versions of the program are available:
 * `versions/main_a.c`: 3 AllGather before collective_istinctive_move
 * `versions/main_old.c`: 1 AllGather before collective_istinctive_move, but fishes
   have a less efficient representation
+* `versions/main_allreduce.c`: Multiple Allreduce to compute global sums and maximum values 
